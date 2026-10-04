@@ -5,8 +5,8 @@
 <hr>
 
 <p align="center">
-  <b>Finds car defects hiding in owner complaints, long before the recall.</b><br>
-  Fissure reads what drivers actually describe instead of the category their complaint got filed under,<br>
+  <b>Finds car defects hiding in owner complaints, before the recall.</b><br>
+  Fissure reads what drivers describe in their complaints instead of the category their complaint got filed under,<br>
   and shows the warning that was sitting in public data for years.
 </p>
 
