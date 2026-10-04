@@ -3,9 +3,9 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { VolcanoDrive } from "./VolcanoScene";
-import { matchLocally, type Match } from "@/lib/match";
+import { categoriesFor, matchLocally, titleFor, type Match } from "@/lib/match";
 import { CORE, CRATER, fit } from "@/lib/scene";
-import type { ClustersData } from "@/lib/types";
+import { isValidated, type ClustersData } from "@/lib/types";
 
 const VolcanoScene = dynamic(() => import("./VolcanoScene"), { ssr: false });
 
@@ -13,6 +13,23 @@ type Phase = "dormant" | "rumbling" | "erupting" | "resolved";
 
 const RUMBLE_MS = 1000;
 const ERUPT_MS = 1100;
+
+/** How long the volcano keeps rumbling while it waits on Granite before
+ *  falling back to the local keyword matcher. */
+const GRANITE_TIMEOUT_MS = 5000;
+
+type Result = Match & {
+  source: "granite" | "local";
+  reason?: string;
+  model?: string;
+};
+
+type GraniteResponse = {
+  vehicle_id: string;
+  confidence: number | null;
+  reason: string;
+  model: string;
+};
 
 /** Core climbs out of the crater, then bubbles get thrown out one by one. */
 const CORE_RISE_MS = 750;
@@ -55,13 +72,18 @@ export default function Hero({
 }) {
   const [query, setQuery] = useState("");
   const [phase, setPhase] = useState<Phase>("dormant");
-  const [match, setMatch] = useState<Match | null>(null);
+  const [match, setMatch] = useState<Result | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [thinking, setThinking] = useState(false);
   const reduced = useSyncExternalStore(subscribeMotion, prefersReduced, () => false);
 
   const drive = useRef<VolcanoDrive>({ heat: 0.2, erupt: 0, shake: 0 });
   const phaseRef = useRef<Phase>("dormant");
   const phaseStart = useRef(0);
   const eruptAt = useRef(0);
+  /** Set once the match (Granite or fallback) is in, so the eruption can go. */
+  const ready = useRef(false);
+  const runId = useRef(0);
 
   const shakeRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -85,6 +107,7 @@ export default function Hero({
 
       // --- drive the scene -----------------------------------------------
       if (reduced) {
+        if (ph === "rumbling" && ready.current) go("resolved");
         const on = ph === "resolved";
         d.heat = on ? 1 : 0.2;
         d.erupt = on ? 1 : 0;
@@ -94,11 +117,12 @@ export default function Hero({
         d.erupt = 0;
         d.shake += (0 - d.shake) * 0.15;
       } else if (ph === "rumbling") {
+        // Keeps rumbling at full strength past RUMBLE_MS if Granite is slow.
         const t = clamp01(el / RUMBLE_MS);
         d.heat = 0.2 + 0.8 * t * t;
         d.shake = 0.15 + 0.85 * Math.pow(t, 2);
         d.erupt = 0;
-        if (el >= RUMBLE_MS) go("erupting");
+        if (el >= RUMBLE_MS && ready.current) go("erupting");
       } else if (ph === "erupting") {
         const t = clamp01(el / ERUPT_MS);
         d.heat = 1;
@@ -185,15 +209,73 @@ export default function Hero({
     return () => cancelAnimationFrame(raf);
   }, [reduced, go]);
 
+  const busy = phase === "rumbling" || phase === "erupting";
+
   const run = useCallback(
-    (q: string) => {
-      const found = matchLocally(data, q);
-      if (!found) return;
-      setMatch(found);
+    async (q: string) => {
+      if (phaseRef.current === "rumbling" || phaseRef.current === "erupting") return;
+      const id = ++runId.current;
+      ready.current = false;
       nodeRefs.current = [];
-      go(reduced ? "resolved" : "rumbling");
+      setNotice(null);
+      setMatch(null);
+      setThinking(true);
+      go("rumbling");
+
+      // Primary path: IBM Granite on watsonx reads the description.
+      let result: Result | null = null;
+      let graniteSaidNone = false;
+      try {
+        const res = await fetch("/api/match", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: q }),
+          signal: AbortSignal.timeout(GRANITE_TIMEOUT_MS),
+        });
+        if (res.ok) {
+          const g = (await res.json()) as GraniteResponse;
+          if (g.vehicle_id === "none") {
+            graniteSaidNone = true;
+          } else {
+            const v = data.vehicles.find((x) => x.vehicle_id === g.vehicle_id);
+            if (v && isValidated(v)) {
+              result = {
+                vehicle: v,
+                title: titleFor(v),
+                categories: categoriesFor(v),
+                score: g.confidence ?? 1,
+                source: "granite",
+                reason: g.reason,
+                model: g.model,
+              };
+            }
+          }
+        }
+      } catch {
+        // Timeout, offline, or not configured: fall through to local.
+      }
+
+      // Fallback: the local keyword + synonym matcher, so the demo never dies.
+      if (!result && !graniteSaidNone) {
+        const local = matchLocally(data, q);
+        if (local) result = { ...local, source: "local" };
+      }
+
+      if (id !== runId.current) return; // a newer search replaced this one
+      setThinking(false);
+
+      if (!result) {
+        go("dormant");
+        setNotice(
+          "No known defect pattern matches that yet. Try describing what the car does, like how the steering feels.",
+        );
+        return;
+      }
+
+      setMatch(result);
+      ready.current = true;
     },
-    [data, reduced, go],
+    [data, go],
   );
 
   const onSubmit = (e: React.FormEvent) => {
@@ -259,10 +341,24 @@ export default function Hero({
                   aria-label="Describe the problem in your own words"
                   className="min-w-0 flex-1 bg-transparent py-1.5 text-[15px] text-[#efe7f0] outline-none"
                 />
-                <button type="submit" className="ignite shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold">
-                  Find the pattern
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="ignite shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold disabled:opacity-60"
+                >
+                  {busy ? "Reading..." : "Find the pattern"}
                 </button>
               </div>
+              {thinking && (
+                <p className="mt-3 text-center text-[12px] text-[#a99fb0]" aria-live="polite">
+                  IBM Granite is reading your description...
+                </p>
+              )}
+              {notice && phase === "dormant" && (
+                <p className="mt-3 text-center text-[13px] text-[#ffb245]" role="status">
+                  {notice}
+                </p>
+              )}
               {phase === "dormant" && (
                 <>
                   <p className="mt-3 text-center text-[13px] text-[#8b8293]">
@@ -317,6 +413,17 @@ export default function Hero({
                 See the evidence
               </button>
             </div>
+            <p className="mt-4 border-t border-[#2a2228] pt-3 text-[12px] leading-relaxed text-[#8b8293]">
+              {match.source === "granite" ? (
+                <>
+                  <span className="text-[#ffb245]">Matched by IBM Granite</span>
+                  <span className="font-mono text-[11px] text-[#6b6472]"> ({match.model})</span>
+                  {match.reason && <>: &ldquo;{match.reason}&rdquo;</>}
+                </>
+              ) : (
+                <>Matched by local keyword fallback (watsonx unavailable)</>
+              )}
+            </p>
           </article>
         </div>
       )}
