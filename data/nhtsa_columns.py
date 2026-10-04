@@ -1,7 +1,6 @@
-# data/reference/nhtsa_columns.py
-
+# data/nhtsa_columns.py
 COLUMNS = [
-    "CMPLID", "ODINO", "MFR_NAME", "MAKETXT", "MODELTXT", "YEARTXT",
+    "ROW_SEQ", "CMPLID", "MFR_NAME", "MAKETXT", "MODELTXT", "YEARTXT",
     "CRASH", "FAILDATE", "FIRE", "INJURED", "DEATHS", "COMPDESC",
     "CITY", "STATE", "VIN", "DATEA", "LDATE", "MILES", "OCCURENCES",
     "CDESCR", "CMPL_TYPE", "POLICE_RPT_YN", "PURCH_DT", "ORIG_OWNER_YN",
@@ -11,7 +10,8 @@ COLUMNS = [
     "MANUF_DT", "SEAT_TYPE", "RESTRAINT_TYPE", "DEALER_NAME",
     "DEALER_TEL", "DEALER_CITY", "DEALER_STATE", "DEALER_ZIP",
     "PROD_TYPE", "REPAIRED_YN", "MEDICAL_ATTN", "VEHICLES_TOWED_YN",
+    "ODINO", "UNKNOWN_51",
 ]
 
 # Make sure that the length of the fields match or we want to throw some error
-assert len(COLUMNS) == 49
+assert len(COLUMNS) == 51
