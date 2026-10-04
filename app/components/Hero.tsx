@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { VolcanoDrive } from "./VolcanoScene";
+import Logo from "./Logo";
 import { categoriesFor, matchLocally, titleFor, type Match } from "@/lib/match";
 import { CORE, CRATER, fit } from "@/lib/scene";
 import { isValidated, type ClustersData } from "@/lib/types";
@@ -327,9 +328,11 @@ export default function Hero({
 
         <div className="stage-ui">
           <div className="mx-auto max-w-5xl px-6">
-            <header className="flex items-baseline justify-between pt-7">
-              <span className="font-semibold tracking-tight text-[#efe7f0]">Fissure</span>
-              <span className="text-xs text-[#8b8293]">early defect detection</span>
+            <header className="flex items-center pt-6">
+              <div className="brand pointer-events-auto flex items-center gap-3">
+                <Logo size={36} />
+                <span className="text-[19px] font-semibold tracking-tight text-[#efe7f0]">Fissure</span>
+              </div>
             </header>
 
             <form onSubmit={onSubmit} className="mx-auto mt-6 w-full max-w-xl">
