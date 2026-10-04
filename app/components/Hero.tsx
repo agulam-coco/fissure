@@ -1,25 +1,44 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { VolcanoDrive } from "./VolcanoCanvas";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import type { VolcanoDrive } from "./VolcanoScene";
 import { matchLocally, type Match } from "@/lib/match";
+import { CORE, CRATER, fit } from "@/lib/scene";
 import type { ClustersData } from "@/lib/types";
 
-// WebGL cannot render on the server, and the scene is heavy enough that
-// deferring it keeps first paint fast.
-const VolcanoCanvas = dynamic(() => import("./VolcanoCanvas"), { ssr: false });
+const VolcanoScene = dynamic(() => import("./VolcanoScene"), { ssr: false });
 
 type Phase = "dormant" | "rumbling" | "erupting" | "resolved";
 
-const RUMBLE_MS = 900;
-const ERUPT_MS = 700;
+const RUMBLE_MS = 1000;
+const ERUPT_MS = 1100;
 
-/** Eases toward 1 with a slight overshoot, so the core lands rather than creeps. */
-function overshoot(t: number) {
-  const c = 1.9;
-  return 1 + c * Math.pow(t - 1, 3) + (c - 0.55) * Math.pow(t - 1, 2);
-}
+/** Core climbs out of the crater, then bubbles get thrown out one by one. */
+const CORE_RISE_MS = 750;
+const LAUNCH_DELAY_MS = 260;
+const LAUNCH_MS = 950;
+const LAUNCH_STAGGER_MS = 85;
+const LAUNCH_ARC = 150; // scene units of extra height at the top of the arc
+
+/** Bubble ring around the core, in scene units. */
+const ORBIT_RX = 370;
+const ORBIT_RY = 145;
+
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+const easeOutBack = (t: number) => {
+  const c = 1.6;
+  return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
+};
+const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
+
+const MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+const prefersReduced = () => window.matchMedia(MOTION_QUERY).matches;
+const subscribeMotion = (cb: () => void) => {
+  const mq = window.matchMedia(MOTION_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
 
 const EXAMPLES = [
   "my steering feels sticky and makes a clicking noise",
@@ -37,93 +56,126 @@ export default function Hero({
   const [query, setQuery] = useState("");
   const [phase, setPhase] = useState<Phase>("dormant");
   const [match, setMatch] = useState<Match | null>(null);
-  const [reduced, setReduced] = useState(false);
+  const reduced = useSyncExternalStore(subscribeMotion, prefersReduced, () => false);
 
-  const drive = useRef<VolcanoDrive>({ heat: 0.22, erupt: 0, shake: 0 });
-  const phaseStart = useRef(0);
+  const drive = useRef<VolcanoDrive>({ heat: 0.2, erupt: 0, shake: 0 });
   const phaseRef = useRef<Phase>("dormant");
-  const orbitRef = useRef<HTMLDivElement>(null);
+  const phaseStart = useRef(0);
+  const eruptAt = useRef(0);
+
+  const shakeRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const coreRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const on = () => setReduced(mq.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-
-  const setPhaseNow = useCallback((p: Phase) => {
+  const go = useCallback((p: Phase) => {
     phaseRef.current = p;
     phaseStart.current = performance.now();
+    if (p === "erupting") eruptAt.current = performance.now();
     setPhase(p);
   }, []);
 
-  /* The whole eruption runs off one rAF loop writing into a ref, so none of
-     it causes React to re-render. */
   useEffect(() => {
     let raf = 0;
     const tick = () => {
       const now = performance.now();
       const el = now - phaseStart.current;
       const d = drive.current;
+      const ph = phaseRef.current;
 
+      // --- drive the scene -----------------------------------------------
       if (reduced) {
-        const on = phaseRef.current === "resolved";
-        d.heat = on ? 1 : 0.22;
+        const on = ph === "resolved";
+        d.heat = on ? 1 : 0.2;
         d.erupt = on ? 1 : 0;
         d.shake = 0;
+      } else if (ph === "dormant") {
+        d.heat += (0.2 - d.heat) * 0.06;
+        d.erupt = 0;
+        d.shake += (0 - d.shake) * 0.15;
+      } else if (ph === "rumbling") {
+        const t = clamp01(el / RUMBLE_MS);
+        d.heat = 0.2 + 0.8 * t * t;
+        d.shake = 0.15 + 0.85 * Math.pow(t, 2);
+        d.erupt = 0;
+        if (el >= RUMBLE_MS) go("erupting");
+      } else if (ph === "erupting") {
+        const t = clamp01(el / ERUPT_MS);
+        d.heat = 1;
+        d.erupt = 0.1 + 0.9 * t;
+        d.shake = (1 - t) * 1.1;
+        if (el >= ERUPT_MS) go("resolved");
       } else {
-        switch (phaseRef.current) {
-          case "dormant":
-            d.heat += (0.22 - d.heat) * 0.08;
-            d.erupt += (0 - d.erupt) * 0.12;
-            d.shake += (0 - d.shake) * 0.15;
-            break;
-          case "rumbling": {
-            const t = Math.min(1, el / RUMBLE_MS);
-            d.heat = 0.22 + (1 - 0.22) * t * t;
-            // Shake builds slowly then hard, like pressure finding the crack.
-            d.shake = Math.pow(t, 2.4);
-            d.erupt = 0;
-            if (el >= RUMBLE_MS) setPhaseNow("erupting");
-            break;
-          }
-          case "erupting": {
-            const t = Math.min(1, el / ERUPT_MS);
-            d.heat = 1;
-            d.erupt = Math.max(0, overshoot(t));
-            d.shake = Math.max(0.12, 1 - t) * (1 - t * 0.5);
-            if (el >= ERUPT_MS) setPhaseNow("resolved");
-            break;
-          }
-          case "resolved":
-            d.heat += (1 - d.heat) * 0.1;
-            d.erupt += (1 - d.erupt) * 0.1;
-            d.shake += (0 - d.shake) * 0.12;
-            break;
-        }
+        d.heat += (0.85 - d.heat) * 0.05;
+        d.erupt = 1;
+        d.shake += (0 - d.shake) * 0.12;
       }
 
-      // Orbit. Written straight to the DOM for the same reason.
-      const nodes = nodeRefs.current;
-      if (nodes.length) {
-        const spin = now * 0.000045;
-        const lit = phaseRef.current === "resolved";
+      // --- camera shake: whole scene + bubbles, never the search UI -------
+      const sh = shakeRef.current;
+      if (sh) {
+        const k = d.shake;
+        const s = now / 1000;
+        const x = k * (Math.sin(s * 53) * 6 + Math.sin(s * 91) * 3.5);
+        const y = k * (Math.sin(s * 61 + 1.3) * 5 + Math.sin(s * 107) * 2.5);
+        sh.style.transform = k > 0.002 ? `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)` : "";
+      }
+
+      // --- core + bubbles -------------------------------------------------
+      const anchor = anchorRef.current;
+      if (sh && anchor) {
+        const F = fit(sh.clientWidth, sh.clientHeight);
+        const cx = F.ox + CORE.x * F.s;
+        const cy = F.oy + CORE.y * F.s;
+        anchor.style.left = `${cx}px`;
+        anchor.style.top = `${cy}px`;
+
+        const ventDy = (CRATER.y - CORE.y) * F.s;
+        const out = ph === "erupting" || ph === "resolved";
+        const since = out ? now - eruptAt.current : -1;
+        const k = Math.min(1.12, Math.max(0.72, F.s * 1.1));
+
+        const core = coreRef.current;
+        if (core) {
+          if (!out) {
+            core.style.opacity = "0";
+          } else {
+            const t = reduced ? 1 : clamp01(since / CORE_RISE_MS);
+            const y = ventDy * (1 - easeOutCubic(t));
+            const sc = (0.2 + 0.8 * easeOutBack(t)) * k;
+            core.style.opacity = String(Math.min(1, t * 3));
+            core.style.transform = `translate(-50%, -50%) translateY(${y.toFixed(1)}px) scale(${sc.toFixed(3)})`;
+          }
+        }
+
+        const nodes = nodeRefs.current;
         for (let i = 0; i < nodes.length; i++) {
           const n = nodes[i];
           if (!n) continue;
-          const a = spin + (i / nodes.length) * Math.PI * 2;
-          const rx = 270;
-          const ry = 120;
-          const x = Math.cos(a) * rx;
-          const y = Math.sin(a) * ry;
-          // Nodes at the back sit slightly smaller and dimmer.
-          const depth = (Math.sin(a) + 1) / 2;
-          const s = 0.84 + depth * 0.2;
-          const settle = lit ? 1 : 0.55;
-          n.style.transform = `translate(${x}px, ${y}px) scale(${s * settle})`;
-          n.style.opacity = String((0.42 + depth * 0.35) * (lit ? 1 : 0.55));
+          if (!out) {
+            n.style.opacity = "0";
+            continue;
+          }
+          const a = now * 0.00005 + (i / nodes.length) * Math.PI * 2 + 0.4;
+          const rx = Math.cos(a) * ORBIT_RX * F.s;
+          const ry = Math.sin(a) * ORBIT_RY * F.s;
+          const depth = (Math.sin(a) + 1) / 2; // 1 = front (lower), 0 = back
+          const restScale = (0.82 + depth * 0.26) * k;
+          const t = reduced ? 1 : clamp01((since - LAUNCH_DELAY_MS - i * LAUNCH_STAGGER_MS) / LAUNCH_MS);
+          if (t <= 0) {
+            n.style.opacity = "0";
+            continue;
+          }
+          // Behind the core while in flight so nothing crosses the title,
+          // then settle into front/back depth once landed.
+          n.style.zIndex = t < 1 ? "4" : depth > 0.5 ? "6" : "4";
+          const e = easeOutCubic(t);
+          // Sideways motion leads, so bubbles clear the core early.
+          const x = rx * Math.min(1, easeOutCubic(Math.min(1, t * 1.6)));
+          const y = ventDy + (ry - ventDy) * e - Math.sin(t * Math.PI) * LAUNCH_ARC * F.s;
+          const sc = (0.15 + 0.85 * easeOutBack(t)) * restScale;
+          n.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${sc.toFixed(3)})`;
+          n.style.opacity = String(Math.min(1, t * 2.5) * (0.62 + depth * 0.38));
         }
       }
 
@@ -131,7 +183,7 @@ export default function Hero({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [reduced, setPhaseNow]);
+  }, [reduced, go]);
 
   const run = useCallback(
     (q: string) => {
@@ -139,9 +191,9 @@ export default function Hero({
       if (!found) return;
       setMatch(found);
       nodeRefs.current = [];
-      setPhaseNow(reduced ? "resolved" : "rumbling");
+      go(reduced ? "resolved" : "rumbling");
     },
-    [data, reduced, setPhaseNow],
+    [data, reduced, go],
   );
 
   const onSubmit = (e: React.FormEvent) => {
@@ -151,143 +203,123 @@ export default function Hero({
   };
 
   const resolved = phase === "resolved";
+  const erupted = phase === "erupting" || resolved;
   const cats = match?.categories ?? [];
+  const v = match?.vehicle;
+  const cap = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
 
   return (
-    <section className="stage">
-      <div className="stage-canvas">
-        <VolcanoCanvas drive={drive} reducedMotion={reduced} />
-      </div>
-      <div className="stage-vignette" />
+    <>
+      <section className="stage">
+        {/* Everything in here shakes together. Oversized so shaking never
+            exposes an edge. */}
+        <div ref={shakeRef} className="absolute -inset-4">
+          <VolcanoScene drive={drive} reducedMotion={reduced} />
 
-      {/* White-hot flash at the moment the column breaks the surface. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-[1] transition-opacity duration-500"
-        style={{
-          opacity: phase === "erupting" ? 0.5 : 0,
-          background:
-            "radial-gradient(44% 34% at 50% 62%, rgba(255,241,214,0.55), transparent 70%)",
-        }}
-      />
-
-      <div className="stage-ui mx-auto flex max-w-5xl flex-col px-6">
-        <header className="flex items-baseline justify-between pt-7">
-          <span className="font-semibold tracking-tight text-[#efe7f0]">Fissure</span>
-          <span className="text-xs text-[#6b6472]">early defect detection</span>
-        </header>
-
-        <form onSubmit={onSubmit} className="mx-auto mt-8 w-full max-w-xl">
-          <div className="vent-input flex items-center gap-3 rounded-full py-2 pl-5 pr-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="What is your car doing?"
-              aria-label="Describe the problem in your own words"
-              className="min-w-0 flex-1 bg-transparent py-1.5 text-[15px] text-[#efe7f0] outline-none"
-            />
-            <button
-              type="submit"
-              className="ignite shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold"
-            >
-              Find the pattern
-            </button>
-          </div>
-          <p className="mt-3 text-center text-[13px] text-[#6b6472]">
-            In your own words. Fissure reads the description, not the category it
-            gets filed under.
-          </p>
-          {phase === "dormant" && (
-            <div className="mt-3 flex flex-wrap justify-center gap-2">
-              {EXAMPLES.map((ex) => (
-                <button
-                  key={ex}
-                  type="button"
-                  onClick={() => {
-                    setQuery(ex);
-                    run(ex);
-                  }}
-                  className="rounded-full border border-[#2a2430] px-3 py-1 text-[11px] text-[#6b6472] transition hover:border-[#4a1e0c] hover:text-[#a99fb0]"
-                >
-                  {ex}
-                </button>
-              ))}
-            </div>
-          )}
-        </form>
-
-        {/* Core label + orbiting official categories, pinned over the WebGL sphere. */}
-        <div className="pointer-events-none relative flex-1">
-          <div className="absolute left-1/2 top-[30%] -translate-x-1/2 -translate-y-1/2">
+          <div ref={anchorRef} className="pointer-events-none absolute" style={{ left: "50%", top: "33%" }}>
             {match && (
-              <div
-                ref={orbitRef}
-                className="relative"
-                style={{ opacity: resolved ? 1 : 0, transition: "opacity 400ms ease" }}
-              >
-                <h2 className="w-[14rem] -translate-x-1/2 -translate-y-1/2 text-center text-[19px] font-semibold leading-tight text-[#2a1304]">
-                  {match.title}
-                </h2>
+              <>
+                <div ref={coreRef} className="core-sphere" style={{ opacity: 0 }}>
+                  <span>{match.title}</span>
+                </div>
                 {cats.map((c, i) => (
                   <div
-                    key={c.label}
+                    key={`${v?.vehicle_id}-${c.label}`}
                     ref={(el) => {
                       nodeRefs.current[i] = el;
                     }}
-                    data-lit={resolved && i < 6}
+                    data-lit={erupted && i < 6}
                     className="orbit-node text-[10px] font-medium"
-                    style={{ ["--d" as string]: `${58 + Math.min(c.count, 300) / 12}px` }}
-                    title={`${c.label} — ${c.count} complaints`}
+                    style={{ ["--d" as string]: `${50 + Math.min(c.count, 300) / 12}px`, opacity: 0 }}
+                    title={`${c.label}, ${c.count} complaints`}
                   >
                     {c.short}
                   </div>
                 ))}
-              </div>
+              </>
             )}
           </div>
         </div>
 
-        {/* Result */}
-        {match && resolved && (
-          <div className="rise mx-auto mb-10 w-full max-w-3xl">
-            <article className="record rounded-2xl px-7 py-6">
-              <div className="flex flex-wrap items-start justify-between gap-6">
-                <div className="min-w-0">
-                  <h3 className="text-[19px] font-semibold leading-snug text-[#efe7f0]">
-                    {match.vehicle.meta.defect_description}
-                  </h3>
-                  <p className="mt-1 text-sm text-[#a99fb0]">
-                    {match.vehicle.make} {match.vehicle.model},{" "}
-                    {match.vehicle.meta.window.slice(0, 4)}–
-                    {match.vehicle.meta.window.slice(-10, -6)}
-                  </p>
-                  <p className="mt-4 max-w-prose text-sm leading-relaxed text-[#8b8293]">
-                    <span className="font-mono text-[#ffb245]">
-                      {match.vehicle.meta.focus_cluster_size.toLocaleString()}
-                    </span>{" "}
-                    drivers described this same failure.{" "}
-                    <span className="font-mono text-[#ffb245]">
-                      {match.vehicle.detection.complaints_on_file_before_recall.toLocaleString()}
-                    </span>{" "}
-                    of them before {match.vehicle.make.charAt(0)}
-                    {match.vehicle.make.slice(1).toLowerCase()} filed recall{" "}
-                    <span className="font-mono text-[#cfc9d4]">
-                      {match.vehicle.meta.recall_campaign_number}
-                    </span>
-                    .
-                  </p>
-                </div>
-                <button
-                  onClick={() => onSeeEvidence(match.vehicle.vehicle_id)}
-                  className="ignite pointer-events-auto shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold"
-                >
-                  See the evidence
+        <div className="stage-vignette" />
+
+        <div className="stage-ui">
+          <div className="mx-auto max-w-5xl px-6">
+            <header className="flex items-baseline justify-between pt-7">
+              <span className="font-semibold tracking-tight text-[#efe7f0]">Fissure</span>
+              <span className="text-xs text-[#8b8293]">early defect detection</span>
+            </header>
+
+            <form onSubmit={onSubmit} className="mx-auto mt-6 w-full max-w-xl">
+              <div className="vent-input flex items-center gap-3 rounded-full py-2 pl-5 pr-2">
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="What is your car doing?"
+                  aria-label="Describe the problem in your own words"
+                  className="min-w-0 flex-1 bg-transparent py-1.5 text-[15px] text-[#efe7f0] outline-none"
+                />
+                <button type="submit" className="ignite shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold">
+                  Find the pattern
                 </button>
               </div>
-            </article>
+              {phase === "dormant" && (
+                <>
+                  <p className="mt-3 text-center text-[13px] text-[#8b8293]">
+                    In your own words. Fissure reads the description, not the category it gets filed under.
+                  </p>
+                  <div className="mt-3 flex flex-wrap justify-center gap-2">
+                    {EXAMPLES.map((ex) => (
+                      <button
+                        key={ex}
+                        type="button"
+                        onClick={() => {
+                          setQuery(ex);
+                          run(ex);
+                        }}
+                        className="example-chip rounded-full px-3 py-1 text-[11px]"
+                      >
+                        {ex}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </form>
           </div>
-        )}
-      </div>
-    </section>
+        </div>
+      </section>
+
+      {/* The record, underneath the volcano */}
+      {match && v && resolved && (
+        <div className="relative z-10 -mt-24 px-6">
+          <article className="record rise mx-auto max-w-2xl rounded-xl px-6 py-5">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-[#ff8a45]">What this likely is</p>
+            <h3 className="mt-1 text-[17px] font-semibold leading-snug text-[#efe7f0]">
+              {v.meta.defect_description}
+            </h3>
+            <p className="mt-1 text-xs text-[#a99fb0]">
+              {cap(v.make)} {cap(v.model)}, {v.meta.window.slice(0, 4)}–{v.meta.window.slice(-10, -6)}
+            </p>
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+              <p className="max-w-sm text-[13px] leading-relaxed text-[#8b8293]">
+                <span className="font-mono text-[#ffb245]">{v.meta.focus_cluster_size.toLocaleString()}</span> drivers
+                described this failure,{" "}
+                <span className="font-mono text-[#ffb245]">
+                  {v.detection.complaints_on_file_before_recall.toLocaleString()}
+                </span>{" "}
+                of them before the recall was filed.
+              </p>
+              <button
+                onClick={() => onSeeEvidence(v.vehicle_id)}
+                className="ignite shrink-0 rounded-full px-5 py-2 text-[13px] font-semibold"
+              >
+                See the evidence
+              </button>
+            </div>
+          </article>
+        </div>
+      )}
+    </>
   );
 }
