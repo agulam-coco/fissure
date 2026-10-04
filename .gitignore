@@ -1,0 +1,41 @@
+# ---- secrets ----
+.env
+.env.local
+.env.*.local
+*.key
+
+# ---- Python (data pipeline) ----
+__pycache__/
+*.py[cod]
+*.pkl
+*.pyc
+.venv/
+venv/
+env/
+*.egg-info/
+.ipynb_checkpoints/
+
+# ---- raw / large data (never commit these) ----
+data/raw/
+*.csv
+*.txt
+!data/processed/clusters.json
+
+# ---- Node / Next.js (the app) ----
+node_modules/
+.next/
+out/
+build/
+dist/
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---- OS / editor junk ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
