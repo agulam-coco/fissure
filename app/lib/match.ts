@@ -12,11 +12,61 @@ export type Match = {
 /**
  * Short, speakable names for each vehicle's flagged defect. The JSON carries
  * the full regulator phrasing, which is too long to sit inside a sphere.
+ *
+ * Both validated recalls are electric power steering, but they are NOT the
+ * same defect and these names have to say so. 15V-340 (Fusion): assist fails
+ * and stays failed, the wheel goes heavy and stays heavy. 18V-586
+ * (Silverado): assist drops out and hands itself back a moment later.
  */
 const DISPLAY_NAME: Record<string, string> = {
     ford_fusion: "Steering assist loss",
-    chevrolet_silverado: "Steering assist loss",
+    chevrolet_silverado: "Steering cuts in and out",
 };
+
+/**
+ * How owners actually name each vehicle. Naming the car is the strongest
+ * signal there is, so it is checked against the raw query rather than the
+ * tokenized one, where STOP would have eaten "truck".
+ */
+const VEHICLE_ALIASES: Record<string, string[]> = {
+    ford_fusion: ["fusion", "ford", "sedan"],
+    chevrolet_silverado: ["silverado", "chevy", "chevrolet", "truck", "pickup"],
+};
+
+/**
+ * The words that actually separate the two failure modes. Both clusters are
+ * dominated by "steering" and "power steering", so shared vocabulary cannot
+ * tell them apart and the higher-volume vehicle would win every time.
+ */
+const SIGNATURE: Record<string, string[]> = {
+    ford_fusion: [
+        "heavy", "stiff", "hard", "effort", "stuck", "locked",
+        "stayed", "permanently", "strength", "muscle",
+    ],
+    chevrolet_silverado: [
+        "intermittent", "intermittently", "momentarily", "momentary",
+        "returned", "restored", "sporadic", "sometimes", "occasionally",
+        "randomly", "briefly", "flickered", "flickering",
+    ],
+};
+
+/** Multi-word tells, which tokenizing would split apart. */
+const SIGNATURE_PHRASES: Record<string, string[]> = {
+    ford_fusion: [
+        "hard to turn", "would not turn", "could not turn",
+        "both hands", "stayed that way", "never came back",
+    ],
+    chevrolet_silverado: [
+        "comes back", "came back", "come back", "goes away", "went away",
+        "on and off", "in and out", "for a second", "for a moment",
+        "then it was fine", "cuts out", "cut out", "cutting out",
+    ],
+};
+
+/** Whole-word test, so "struck" never counts as "truck". */
+function mentions(raw: string, needle: string): boolean {
+    return new RegExp(`\\b${needle}\\b`).test(raw);
+}
 
 /**
  * Owners do not write "electric power steering assist fault". They write
@@ -122,6 +172,7 @@ export function titleFor(v: ValidatedVehicle) {
  * fails or is slow, not the primary path.
  */
 export function matchLocally(data: ClustersData, query: string): Match | null {
+    const raw = query.toLowerCase();
     const q = expand(tokenize(query));
     if (q.size === 0) return null;
 
@@ -133,6 +184,25 @@ export function matchLocally(data: ClustersData, query: string): Match | null {
         if (!focus) continue;
 
         let score = 0;
+
+        // Naming the vehicle settles it. A Silverado owner describing stiff
+        // steering means the Silverado defect, whatever the shared wording
+        // would otherwise score.
+        for (const alias of VEHICLE_ALIASES[v.vehicle_id] ?? []) {
+            if (mentions(raw, alias)) {
+                score += 4;
+                break;
+            }
+        }
+
+        // Failure-mode tells: stays-broken vs comes-back.
+        for (const word of SIGNATURE[v.vehicle_id] ?? []) {
+            if (q.has(word)) score += 1.5;
+        }
+        for (const phrase of SIGNATURE_PHRASES[v.vehicle_id] ?? []) {
+            if (raw.includes(phrase)) score += 2;
+        }
+
         // Earlier terms carry more weight: top_terms is ordered by centroid weight.
         focus.top_terms.forEach((term, i) => {
             const weight = 1 / (1 + i * 0.35);

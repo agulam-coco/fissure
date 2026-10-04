@@ -7,6 +7,18 @@ export const runtime = "nodejs";
 
 const data = clusters as unknown as ClustersData;
 
+/**
+ * Both validated recalls are electric power steering, so their clustered
+ * vocabulary is nearly identical and the model cannot separate them on the
+ * defect sentence alone. One line each, stating what makes them different.
+ */
+const DISTINGUISHER: Record<string, string> = {
+    ford_fusion:
+        "Assist is lost and STAYS lost. The wheel goes heavy and needs real effort until it is repaired.",
+    chevrolet_silverado:
+        "Assist drops out and COMES BACK on its own, often within seconds. Intermittent, usually with a warning light.",
+};
+
 /** What the model is shown for each known defect pattern. */
 const CANDIDATES = data.vehicles.filter(isValidated).map((v) => {
     const focus = v.clusters.find((c) => c.is_focus);
@@ -14,6 +26,7 @@ const CANDIDATES = data.vehicles.filter(isValidated).map((v) => {
         id: v.vehicle_id,
         vehicle: `${v.make} ${v.model} (${v.meta.window.slice(0, 4)}-${v.meta.window.slice(-10, -6)})`,
         defect: v.meta.defect_description,
+        tells: DISTINGUISHER[v.vehicle_id] ?? "",
         words: (focus?.top_terms ?? []).slice(0, 15).join(", "),
     };
 });
@@ -23,7 +36,8 @@ const SYSTEM = `You match a car owner's plain-language problem description to kn
 
 function userPrompt(query: string) {
     const list = CANDIDATES.map(
-        (c) => `- id: ${c.id}\n  vehicle: ${c.vehicle}\n  defect: ${c.defect}\n  words owners used most: ${c.words}`,
+        (c) =>
+            `- id: ${c.id}\n  vehicle: ${c.vehicle}\n  defect: ${c.defect}\n  how to tell it apart: ${c.tells}\n  words owners used most: ${c.words}`,
     ).join("\n");
     return `Owner description:
 """${query}"""
@@ -34,6 +48,7 @@ ${list}
 Rules:
 - Pick the pattern whose failure best matches the symptoms described.
 - If the owner names a make or model, prefer the pattern for that vehicle.
+- Several patterns may involve the same part. Use "how to tell it apart" to choose between them: whether the failure persists or returns on its own is usually the deciding detail.
 - If no pattern plausibly fits the symptoms, use "none".
 
 Respond as JSON exactly like:
