@@ -1,0 +1,1866 @@
+{
+  "generated_at": "2026-10-04",
+  "method": {
+    "summary": "Complaint narratives are vectorized with TF-IDF (1-2 grams), reduced with truncated SVD, L2-normalized, and clustered with KMeans. No component codes, recall data, or labels of any kind are used as input.",
+    "preprocessing": [
+      "Drop complaints with empty narratives.",
+      "Drop post-recall administrative complaints (parts unavailable, recall-notice follow-ups): these postdate the recall by definition and cannot contribute to early detection.",
+      "Strip NHTSA call-center boilerplate ('TL* THE CONTACT OWNS A...') so the model does not cluster on who transcribed the complaint.",
+      "Extend stopwords with narrative scaffolding and post-hoc service-outcome vocabulary, but PRESERVE negation words (not/no/never): removing them makes 'airbag did not deploy' identical to 'airbag did deploy'.",
+      "L2-normalize SVD output so KMeans compares direction rather than document length, which otherwise proxies for writing style."
+    ],
+    "known_limitations": [
+      "Reach depends on complaint volume. A defect that generates few complaints before its recall cannot be detected by a volume-based method, however good the clustering is.",
+      "Lead time depends on the alerting threshold. The sensitivity table is shipped so this dependence is visible rather than hidden behind one number.",
+      "Three of five candidate vehicles were excluded after testing. Their reasons are recorded here rather than omitted."
+    ]
+  },
+  "vehicles": [
+    {
+      "vehicle_id": "ford_fusion",
+      "make": "FORD",
+      "model": "FUSION",
+      "status": "validated",
+      "meta": {
+        "window": "2010-01-01 to 2016-12-31",
+        "total_complaints_analyzed": 20327,
+        "n_clusters": 6,
+        "focus_cluster_ids": [
+          1
+        ],
+        "focus_cluster_size": 4803,
+        "recall_campaign_number": "15V-340",
+        "recall_signal_month": "2015-09-10",
+        "defect_description": "Electric power steering assist may fail, requiring greater steering effort",
+        "source": "NHTSA ODI Complaints flat file (public domain)"
+      },
+      "validation": {
+        "defect_keyword_matches": 6380,
+        "base_rate": 0.3139,
+        "focus_recall": 0.7201,
+        "focus_purity": 0.9565,
+        "focus_lift": 3.05,
+        "distinct_compdesc_labels": 78,
+        "compdesc_breakdown": {
+          "STEERING": 4892,
+          "ELECTRICAL SYSTEM": 305,
+          "ELECTRONIC STABILITY CONTROL (ESC)": 260,
+          "POWER TRAIN": 130,
+          "UNKNOWN OR OTHER": 109,
+          "AIR BAGS": 90,
+          "ENGINE": 77,
+          "SERVICE BRAKES": 60,
+          "SUSPENSION": 54,
+          "STEERING:ELECTRIC POWER ASSIST SYSTEM": 43,
+          "VEHICLE SPEED CONTROL": 42,
+          "FUEL/PROPULSION SYSTEM": 34,
+          "WHEELS": 33,
+          "STEERING:RACK AND PINION": 25,
+          "TRACTION CONTROL SYSTEM": 24,
+          "STRUCTURE:BODY": 23,
+          "EXTERIOR LIGHTING": 17,
+          "STEERING:HYDRAULIC POWER ASSIST:POWER STEERING FLUID": 14,
+          "SEAT BELTS": 11,
+          "TIRES": 9
+        },
+        "note": "defect_keyword_matches is a keyword-based ground truth used only to MEASURE the clustering. It never feeds the clustering, which is unsupervised over complaint narrative text alone."
+      },
+      "detection": {
+        "policy": "Flag a cluster once it accumulates 25 complaints in a rolling 12 months.",
+        "primary_threshold": 25,
+        "alert_month": "2012-07",
+        "lead_months": 38.3,
+        "complaints_on_file_before_recall": 1215,
+        "cumulative_evidence": [
+          {
+            "months_before_recall": 48,
+            "as_of": "2011-09-10",
+            "complaints_filed": 7
+          },
+          {
+            "months_before_recall": 36,
+            "as_of": "2012-09-10",
+            "complaints_filed": 35
+          },
+          {
+            "months_before_recall": 24,
+            "as_of": "2013-09-10",
+            "complaints_filed": 192
+          },
+          {
+            "months_before_recall": 18,
+            "as_of": "2014-03-10",
+            "complaints_filed": 287
+          },
+          {
+            "months_before_recall": 12,
+            "as_of": "2014-09-10",
+            "complaints_filed": 527
+          },
+          {
+            "months_before_recall": 6,
+            "as_of": "2015-03-10",
+            "complaints_filed": 923
+          },
+          {
+            "months_before_recall": 3,
+            "as_of": "2015-06-10",
+            "complaints_filed": 1109
+          },
+          {
+            "months_before_recall": 1,
+            "as_of": "2015-08-10",
+            "complaints_filed": 1179
+          }
+        ],
+        "alert_sensitivity": [
+          {
+            "threshold": 25,
+            "alert_month": "2012-07",
+            "lead_months": 38.3
+          },
+          {
+            "threshold": 50,
+            "alert_month": "2013-03",
+            "lead_months": 30.3
+          },
+          {
+            "threshold": 100,
+            "alert_month": "2013-07",
+            "lead_months": 26.3
+          },
+          {
+            "threshold": 200,
+            "alert_month": "2014-01",
+            "lead_months": 20.3
+          }
+        ],
+        "timeline_field": "DATEA (date complaint was filed with NHTSA)",
+        "timeline_note": "Uses filing date, not failure date. An early-warning system can only act on complaints that have actually been filed, so this is what was knowable at the time."
+      },
+      "monthly_series": [
+        {
+          "month": "2010-11",
+          "complaints": 1
+        },
+        {
+          "month": "2010-12",
+          "complaints": 1
+        },
+        {
+          "month": "2011-01",
+          "complaints": 0
+        },
+        {
+          "month": "2011-02",
+          "complaints": 0
+        },
+        {
+          "month": "2011-03",
+          "complaints": 0
+        },
+        {
+          "month": "2011-04",
+          "complaints": 0
+        },
+        {
+          "month": "2011-05",
+          "complaints": 0
+        },
+        {
+          "month": "2011-06",
+          "complaints": 0
+        },
+        {
+          "month": "2011-07",
+          "complaints": 1
+        },
+        {
+          "month": "2011-08",
+          "complaints": 4
+        },
+        {
+          "month": "2011-09",
+          "complaints": 1
+        },
+        {
+          "month": "2011-10",
+          "complaints": 1
+        },
+        {
+          "month": "2011-11",
+          "complaints": 1
+        },
+        {
+          "month": "2011-12",
+          "complaints": 0
+        },
+        {
+          "month": "2012-01",
+          "complaints": 1
+        },
+        {
+          "month": "2012-02",
+          "complaints": 1
+        },
+        {
+          "month": "2012-03",
+          "complaints": 0
+        },
+        {
+          "month": "2012-04",
+          "complaints": 1
+        },
+        {
+          "month": "2012-05",
+          "complaints": 5
+        },
+        {
+          "month": "2012-06",
+          "complaints": 2
+        },
+        {
+          "month": "2012-07",
+          "complaints": 8
+        },
+        {
+          "month": "2012-08",
+          "complaints": 6
+        },
+        {
+          "month": "2012-09",
+          "complaints": 5
+        },
+        {
+          "month": "2012-10",
+          "complaints": 11
+        },
+        {
+          "month": "2012-11",
+          "complaints": 4
+        },
+        {
+          "month": "2012-12",
+          "complaints": 2
+        },
+        {
+          "month": "2013-01",
+          "complaints": 2
+        },
+        {
+          "month": "2013-02",
+          "complaints": 2
+        },
+        {
+          "month": "2013-03",
+          "complaints": 8
+        },
+        {
+          "month": "2013-04",
+          "complaints": 8
+        },
+        {
+          "month": "2013-05",
+          "complaints": 15
+        },
+        {
+          "month": "2013-06",
+          "complaints": 20
+        },
+        {
+          "month": "2013-07",
+          "complaints": 31
+        },
+        {
+          "month": "2013-08",
+          "complaints": 39
+        },
+        {
+          "month": "2013-09",
+          "complaints": 19
+        },
+        {
+          "month": "2013-10",
+          "complaints": 10
+        },
+        {
+          "month": "2013-11",
+          "complaints": 10
+        },
+        {
+          "month": "2013-12",
+          "complaints": 27
+        },
+        {
+          "month": "2014-01",
+          "complaints": 17
+        },
+        {
+          "month": "2014-02",
+          "complaints": 9
+        },
+        {
+          "month": "2014-03",
+          "complaints": 24
+        },
+        {
+          "month": "2014-04",
+          "complaints": 21
+        },
+        {
+          "month": "2014-05",
+          "complaints": 26
+        },
+        {
+          "month": "2014-06",
+          "complaints": 53
+        },
+        {
+          "month": "2014-07",
+          "complaints": 54
+        },
+        {
+          "month": "2014-08",
+          "complaints": 55
+        },
+        {
+          "month": "2014-09",
+          "complaints": 47
+        },
+        {
+          "month": "2014-10",
+          "complaints": 135
+        },
+        {
+          "month": "2014-11",
+          "complaints": 79
+        },
+        {
+          "month": "2014-12",
+          "complaints": 55
+        },
+        {
+          "month": "2015-01",
+          "complaints": 47
+        },
+        {
+          "month": "2015-02",
+          "complaints": 33
+        },
+        {
+          "month": "2015-03",
+          "complaints": 65
+        },
+        {
+          "month": "2015-04",
+          "complaints": 52
+        },
+        {
+          "month": "2015-05",
+          "complaints": 79
+        },
+        {
+          "month": "2015-06",
+          "complaints": 29
+        },
+        {
+          "month": "2015-07",
+          "complaints": 43
+        },
+        {
+          "month": "2015-08",
+          "complaints": 35
+        },
+        {
+          "month": "2015-09",
+          "complaints": 37
+        },
+        {
+          "month": "2015-10",
+          "complaints": 23
+        },
+        {
+          "month": "2015-11",
+          "complaints": 31
+        },
+        {
+          "month": "2015-12",
+          "complaints": 27
+        },
+        {
+          "month": "2016-01",
+          "complaints": 27
+        },
+        {
+          "month": "2016-02",
+          "complaints": 20
+        },
+        {
+          "month": "2016-03",
+          "complaints": 21
+        },
+        {
+          "month": "2016-04",
+          "complaints": 32
+        },
+        {
+          "month": "2016-05",
+          "complaints": 18
+        },
+        {
+          "month": "2016-06",
+          "complaints": 15
+        },
+        {
+          "month": "2016-07",
+          "complaints": 25
+        },
+        {
+          "month": "2016-08",
+          "complaints": 22
+        },
+        {
+          "month": "2016-09",
+          "complaints": 34
+        },
+        {
+          "month": "2016-10",
+          "complaints": 48
+        },
+        {
+          "month": "2016-11",
+          "complaints": 44
+        },
+        {
+          "month": "2016-12",
+          "complaints": 33
+        },
+        {
+          "month": "2017-01",
+          "complaints": 41
+        },
+        {
+          "month": "2017-02",
+          "complaints": 23
+        },
+        {
+          "month": "2017-03",
+          "complaints": 29
+        },
+        {
+          "month": "2017-04",
+          "complaints": 14
+        },
+        {
+          "month": "2017-05",
+          "complaints": 22
+        },
+        {
+          "month": "2017-06",
+          "complaints": 39
+        },
+        {
+          "month": "2017-07",
+          "complaints": 38
+        },
+        {
+          "month": "2017-08",
+          "complaints": 28
+        },
+        {
+          "month": "2017-09",
+          "complaints": 45
+        },
+        {
+          "month": "2017-10",
+          "complaints": 43
+        },
+        {
+          "month": "2017-11",
+          "complaints": 44
+        },
+        {
+          "month": "2017-12",
+          "complaints": 47
+        },
+        {
+          "month": "2018-01",
+          "complaints": 36
+        },
+        {
+          "month": "2018-02",
+          "complaints": 49
+        },
+        {
+          "month": "2018-03",
+          "complaints": 40
+        },
+        {
+          "month": "2018-04",
+          "complaints": 29
+        },
+        {
+          "month": "2018-05",
+          "complaints": 40
+        },
+        {
+          "month": "2018-06",
+          "complaints": 31
+        },
+        {
+          "month": "2018-07",
+          "complaints": 34
+        },
+        {
+          "month": "2018-08",
+          "complaints": 38
+        },
+        {
+          "month": "2018-09",
+          "complaints": 39
+        },
+        {
+          "month": "2018-10",
+          "complaints": 51
+        },
+        {
+          "month": "2018-11",
+          "complaints": 58
+        },
+        {
+          "month": "2018-12",
+          "complaints": 78
+        },
+        {
+          "month": "2019-01",
+          "complaints": 72
+        },
+        {
+          "month": "2019-02",
+          "complaints": 51
+        },
+        {
+          "month": "2019-03",
+          "complaints": 48
+        },
+        {
+          "month": "2019-04",
+          "complaints": 50
+        },
+        {
+          "month": "2019-05",
+          "complaints": 37
+        },
+        {
+          "month": "2019-06",
+          "complaints": 46
+        },
+        {
+          "month": "2019-07",
+          "complaints": 51
+        },
+        {
+          "month": "2019-08",
+          "complaints": 52
+        },
+        {
+          "month": "2019-09",
+          "complaints": 57
+        },
+        {
+          "month": "2019-10",
+          "complaints": 54
+        },
+        {
+          "month": "2019-11",
+          "complaints": 49
+        },
+        {
+          "month": "2019-12",
+          "complaints": 50
+        },
+        {
+          "month": "2020-01",
+          "complaints": 52
+        },
+        {
+          "month": "2020-02",
+          "complaints": 55
+        },
+        {
+          "month": "2020-03",
+          "complaints": 35
+        },
+        {
+          "month": "2020-04",
+          "complaints": 12
+        },
+        {
+          "month": "2020-05",
+          "complaints": 22
+        },
+        {
+          "month": "2020-06",
+          "complaints": 33
+        },
+        {
+          "month": "2020-07",
+          "complaints": 37
+        },
+        {
+          "month": "2020-08",
+          "complaints": 25
+        },
+        {
+          "month": "2020-09",
+          "complaints": 33
+        },
+        {
+          "month": "2020-10",
+          "complaints": 28
+        },
+        {
+          "month": "2020-11",
+          "complaints": 36
+        },
+        {
+          "month": "2020-12",
+          "complaints": 26
+        },
+        {
+          "month": "2021-01",
+          "complaints": 51
+        },
+        {
+          "month": "2021-02",
+          "complaints": 33
+        },
+        {
+          "month": "2021-03",
+          "complaints": 31
+        },
+        {
+          "month": "2021-04",
+          "complaints": 32
+        },
+        {
+          "month": "2021-05",
+          "complaints": 13
+        },
+        {
+          "month": "2021-06",
+          "complaints": 17
+        },
+        {
+          "month": "2021-07",
+          "complaints": 21
+        },
+        {
+          "month": "2021-08",
+          "complaints": 24
+        },
+        {
+          "month": "2021-09",
+          "complaints": 9
+        },
+        {
+          "month": "2021-10",
+          "complaints": 21
+        },
+        {
+          "month": "2021-11",
+          "complaints": 19
+        },
+        {
+          "month": "2021-12",
+          "complaints": 23
+        },
+        {
+          "month": "2022-01",
+          "complaints": 18
+        },
+        {
+          "month": "2022-02",
+          "complaints": 16
+        },
+        {
+          "month": "2022-03",
+          "complaints": 22
+        },
+        {
+          "month": "2022-04",
+          "complaints": 26
+        },
+        {
+          "month": "2022-05",
+          "complaints": 25
+        },
+        {
+          "month": "2022-06",
+          "complaints": 14
+        },
+        {
+          "month": "2022-07",
+          "complaints": 13
+        },
+        {
+          "month": "2022-08",
+          "complaints": 36
+        },
+        {
+          "month": "2022-09",
+          "complaints": 20
+        },
+        {
+          "month": "2022-10",
+          "complaints": 23
+        },
+        {
+          "month": "2022-11",
+          "complaints": 18
+        },
+        {
+          "month": "2022-12",
+          "complaints": 23
+        },
+        {
+          "month": "2023-01",
+          "complaints": 25
+        },
+        {
+          "month": "2023-02",
+          "complaints": 15
+        },
+        {
+          "month": "2023-03",
+          "complaints": 20
+        },
+        {
+          "month": "2023-04",
+          "complaints": 21
+        },
+        {
+          "month": "2023-05",
+          "complaints": 23
+        },
+        {
+          "month": "2023-06",
+          "complaints": 19
+        },
+        {
+          "month": "2023-07",
+          "complaints": 22
+        },
+        {
+          "month": "2023-08",
+          "complaints": 19
+        },
+        {
+          "month": "2023-09",
+          "complaints": 17
+        },
+        {
+          "month": "2023-10",
+          "complaints": 12
+        },
+        {
+          "month": "2023-11",
+          "complaints": 15
+        },
+        {
+          "month": "2023-12",
+          "complaints": 19
+        },
+        {
+          "month": "2024-01",
+          "complaints": 19
+        },
+        {
+          "month": "2024-02",
+          "complaints": 17
+        },
+        {
+          "month": "2024-03",
+          "complaints": 13
+        },
+        {
+          "month": "2024-04",
+          "complaints": 13
+        },
+        {
+          "month": "2024-05",
+          "complaints": 14
+        },
+        {
+          "month": "2024-06",
+          "complaints": 28
+        },
+        {
+          "month": "2024-07",
+          "complaints": 16
+        },
+        {
+          "month": "2024-08",
+          "complaints": 14
+        },
+        {
+          "month": "2024-09",
+          "complaints": 17
+        },
+        {
+          "month": "2024-10",
+          "complaints": 15
+        },
+        {
+          "month": "2024-11",
+          "complaints": 8
+        },
+        {
+          "month": "2024-12",
+          "complaints": 22
+        },
+        {
+          "month": "2025-01",
+          "complaints": 16
+        },
+        {
+          "month": "2025-02",
+          "complaints": 16
+        },
+        {
+          "month": "2025-03",
+          "complaints": 17
+        },
+        {
+          "month": "2025-04",
+          "complaints": 18
+        },
+        {
+          "month": "2025-05",
+          "complaints": 16
+        },
+        {
+          "month": "2025-06",
+          "complaints": 13
+        },
+        {
+          "month": "2025-07",
+          "complaints": 16
+        },
+        {
+          "month": "2025-08",
+          "complaints": 7
+        },
+        {
+          "month": "2025-09",
+          "complaints": 6
+        },
+        {
+          "month": "2025-10",
+          "complaints": 5
+        },
+        {
+          "month": "2025-11",
+          "complaints": 5
+        },
+        {
+          "month": "2025-12",
+          "complaints": 9
+        },
+        {
+          "month": "2026-01",
+          "complaints": 13
+        },
+        {
+          "month": "2026-02",
+          "complaints": 11
+        },
+        {
+          "month": "2026-03",
+          "complaints": 18
+        },
+        {
+          "month": "2026-04",
+          "complaints": 7
+        },
+        {
+          "month": "2026-05",
+          "complaints": 8
+        },
+        {
+          "month": "2026-06",
+          "complaints": 7
+        },
+        {
+          "month": "2026-07",
+          "complaints": 3
+        },
+        {
+          "month": "2026-08",
+          "complaints": 6
+        },
+        {
+          "month": "2026-09",
+          "complaints": 6
+        }
+      ],
+      "clusters": [
+        {
+          "cluster_id": 0,
+          "size": 2855,
+          "is_focus": false,
+          "defect_keyword_matches": 1205,
+          "purity": 0.4221,
+          "top_terms": [
+            "failure",
+            "steering",
+            "not",
+            "illuminated",
+            "warning",
+            "mph",
+            "driving",
+            "steering wheel",
+            "wheel",
+            "power",
+            "light illuminated",
+            "warning light"
+          ]
+        },
+        {
+          "cluster_id": 1,
+          "size": 4803,
+          "is_focus": true,
+          "defect_keyword_matches": 4594,
+          "purity": 0.9565,
+          "top_terms": [
+            "steering",
+            "power steering",
+            "power",
+            "car",
+            "assist",
+            "steering assist",
+            "service",
+            "wheel",
+            "ford",
+            "driving",
+            "fault",
+            "not"
+          ]
+        },
+        {
+          "cluster_id": 2,
+          "size": 6483,
+          "is_focus": false,
+          "defect_keyword_matches": 443,
+          "purity": 0.0683,
+          "top_terms": [
+            "car",
+            "not",
+            "ford",
+            "brake",
+            "transmission",
+            "takata",
+            "no",
+            "issue",
+            "brakes",
+            "problem",
+            "fusion",
+            "seat"
+          ]
+        },
+        {
+          "cluster_id": 3,
+          "size": 887,
+          "is_focus": false,
+          "defect_keyword_matches": 14,
+          "purity": 0.0158,
+          "top_terms": [
+            "door",
+            "latch",
+            "open",
+            "door latch",
+            "driver",
+            "driver door",
+            "handle",
+            "not",
+            "passenger",
+            "passenger door",
+            "door not",
+            "door handle"
+          ]
+        },
+        {
+          "cluster_id": 4,
+          "size": 1140,
+          "is_focus": false,
+          "defect_keyword_matches": 11,
+          "purity": 0.0096,
+          "top_terms": [
+            "engine",
+            "coolant",
+            "cylinder",
+            "ford",
+            "check engine",
+            "check",
+            "light",
+            "car",
+            "intrusion",
+            "leaking",
+            "coolant intrusion",
+            "failure"
+          ]
+        },
+        {
+          "cluster_id": 5,
+          "size": 4159,
+          "is_focus": false,
+          "defect_keyword_matches": 113,
+          "purity": 0.0272,
+          "top_terms": [
+            "car",
+            "throttle",
+            "throttle body",
+            "body",
+            "engine",
+            "tr",
+            "light",
+            "wrench",
+            "problem",
+            "ford",
+            "driving",
+            "not"
+          ]
+        }
+      ]
+    },
+    {
+      "vehicle_id": "chevrolet_silverado",
+      "make": "CHEVROLET",
+      "model": "SILVERADO",
+      "status": "validated",
+      "meta": {
+        "window": "2015-01-01 to 2015-12-31",
+        "total_complaints_analyzed": 1829,
+        "n_clusters": 5,
+        "focus_cluster_ids": [
+          3
+        ],
+        "focus_cluster_size": 357,
+        "recall_campaign_number": "18V-586",
+        "recall_signal_month": "2018-07-09",
+        "defect_description": "Electric power steering assist may be lost momentarily, then suddenly return",
+        "source": "NHTSA ODI Complaints flat file (public domain)"
+      },
+      "validation": {
+        "defect_keyword_matches": 248,
+        "base_rate": 0.1356,
+        "focus_recall": 0.6774,
+        "focus_purity": 0.4706,
+        "focus_lift": 3.47,
+        "distinct_compdesc_labels": 15,
+        "compdesc_breakdown": {
+          "STEERING": 112,
+          "ELECTRICAL SYSTEM": 55,
+          "SERVICE BRAKES": 22,
+          "ELECTRONIC STABILITY CONTROL (ESC)": 13,
+          "POWER TRAIN": 13,
+          "ENGINE": 13,
+          "UNKNOWN OR OTHER": 4,
+          "EXTERIOR LIGHTING": 4,
+          "STRUCTURE:BODY": 3,
+          "VEHICLE SPEED CONTROL": 2,
+          "FUEL/PROPULSION SYSTEM": 2,
+          "SERVICE BRAKES, HYDRAULIC": 2,
+          "SERVICE BRAKES, HYDRAULIC:ANTILOCK/TRACTION CONTROL/ELECTRONIC LIMITED SLIP:ABS WARNING LIGHT": 1,
+          "VISIBILITY/WIPER": 1,
+          "ELECTRICAL SYSTEM:HORN": 1
+        },
+        "note": "defect_keyword_matches is a keyword-based ground truth used only to MEASURE the clustering. It never feeds the clustering, which is unsupervised over complaint narrative text alone."
+      },
+      "detection": {
+        "policy": "Flag a cluster once it accumulates 25 complaints in a rolling 12 months.",
+        "primary_threshold": 25,
+        "alert_month": "2017-03",
+        "lead_months": 16.3,
+        "complaints_on_file_before_recall": 74,
+        "cumulative_evidence": [
+          {
+            "months_before_recall": 48,
+            "as_of": "2014-07-09",
+            "complaints_filed": 0
+          },
+          {
+            "months_before_recall": 36,
+            "as_of": "2015-07-09",
+            "complaints_filed": 1
+          },
+          {
+            "months_before_recall": 24,
+            "as_of": "2016-07-09",
+            "complaints_filed": 19
+          },
+          {
+            "months_before_recall": 18,
+            "as_of": "2017-01-09",
+            "complaints_filed": 34
+          },
+          {
+            "months_before_recall": 12,
+            "as_of": "2017-07-09",
+            "complaints_filed": 44
+          },
+          {
+            "months_before_recall": 6,
+            "as_of": "2018-01-09",
+            "complaints_filed": 58
+          },
+          {
+            "months_before_recall": 3,
+            "as_of": "2018-04-09",
+            "complaints_filed": 61
+          },
+          {
+            "months_before_recall": 1,
+            "as_of": "2018-06-09",
+            "complaints_filed": 67
+          }
+        ],
+        "alert_sensitivity": [
+          {
+            "threshold": 25,
+            "alert_month": "2017-03",
+            "lead_months": 16.3
+          },
+          {
+            "threshold": 50,
+            "alert_month": null,
+            "lead_months": null
+          },
+          {
+            "threshold": 100,
+            "alert_month": null,
+            "lead_months": null
+          },
+          {
+            "threshold": 200,
+            "alert_month": null,
+            "lead_months": null
+          }
+        ],
+        "timeline_field": "DATEA (date complaint was filed with NHTSA)",
+        "timeline_note": "Uses filing date, not failure date. An early-warning system can only act on complaints that have actually been filed, so this is what was knowable at the time."
+      },
+      "monthly_series": [
+        {
+          "month": "2015-02",
+          "complaints": 1
+        },
+        {
+          "month": "2015-03",
+          "complaints": 0
+        },
+        {
+          "month": "2015-04",
+          "complaints": 0
+        },
+        {
+          "month": "2015-05",
+          "complaints": 0
+        },
+        {
+          "month": "2015-06",
+          "complaints": 0
+        },
+        {
+          "month": "2015-07",
+          "complaints": 2
+        },
+        {
+          "month": "2015-08",
+          "complaints": 2
+        },
+        {
+          "month": "2015-09",
+          "complaints": 0
+        },
+        {
+          "month": "2015-10",
+          "complaints": 2
+        },
+        {
+          "month": "2015-11",
+          "complaints": 3
+        },
+        {
+          "month": "2015-12",
+          "complaints": 2
+        },
+        {
+          "month": "2016-01",
+          "complaints": 2
+        },
+        {
+          "month": "2016-02",
+          "complaints": 1
+        },
+        {
+          "month": "2016-03",
+          "complaints": 1
+        },
+        {
+          "month": "2016-04",
+          "complaints": 2
+        },
+        {
+          "month": "2016-05",
+          "complaints": 1
+        },
+        {
+          "month": "2016-06",
+          "complaints": 0
+        },
+        {
+          "month": "2016-07",
+          "complaints": 1
+        },
+        {
+          "month": "2016-08",
+          "complaints": 4
+        },
+        {
+          "month": "2016-09",
+          "complaints": 2
+        },
+        {
+          "month": "2016-10",
+          "complaints": 1
+        },
+        {
+          "month": "2016-11",
+          "complaints": 3
+        },
+        {
+          "month": "2016-12",
+          "complaints": 4
+        },
+        {
+          "month": "2017-01",
+          "complaints": 0
+        },
+        {
+          "month": "2017-02",
+          "complaints": 3
+        },
+        {
+          "month": "2017-03",
+          "complaints": 4
+        },
+        {
+          "month": "2017-04",
+          "complaints": 0
+        },
+        {
+          "month": "2017-05",
+          "complaints": 0
+        },
+        {
+          "month": "2017-06",
+          "complaints": 2
+        },
+        {
+          "month": "2017-07",
+          "complaints": 1
+        },
+        {
+          "month": "2017-08",
+          "complaints": 7
+        },
+        {
+          "month": "2017-09",
+          "complaints": 1
+        },
+        {
+          "month": "2017-10",
+          "complaints": 4
+        },
+        {
+          "month": "2017-11",
+          "complaints": 2
+        },
+        {
+          "month": "2017-12",
+          "complaints": 0
+        },
+        {
+          "month": "2018-01",
+          "complaints": 1
+        },
+        {
+          "month": "2018-02",
+          "complaints": 1
+        },
+        {
+          "month": "2018-03",
+          "complaints": 1
+        },
+        {
+          "month": "2018-04",
+          "complaints": 2
+        },
+        {
+          "month": "2018-05",
+          "complaints": 4
+        },
+        {
+          "month": "2018-06",
+          "complaints": 7
+        },
+        {
+          "month": "2018-07",
+          "complaints": 4
+        },
+        {
+          "month": "2018-08",
+          "complaints": 0
+        },
+        {
+          "month": "2018-09",
+          "complaints": 2
+        },
+        {
+          "month": "2018-10",
+          "complaints": 5
+        },
+        {
+          "month": "2018-11",
+          "complaints": 4
+        },
+        {
+          "month": "2018-12",
+          "complaints": 5
+        },
+        {
+          "month": "2019-01",
+          "complaints": 1
+        },
+        {
+          "month": "2019-02",
+          "complaints": 1
+        },
+        {
+          "month": "2019-03",
+          "complaints": 0
+        },
+        {
+          "month": "2019-04",
+          "complaints": 2
+        },
+        {
+          "month": "2019-05",
+          "complaints": 9
+        },
+        {
+          "month": "2019-06",
+          "complaints": 3
+        },
+        {
+          "month": "2019-07",
+          "complaints": 6
+        },
+        {
+          "month": "2019-08",
+          "complaints": 8
+        },
+        {
+          "month": "2019-09",
+          "complaints": 4
+        },
+        {
+          "month": "2019-10",
+          "complaints": 5
+        },
+        {
+          "month": "2019-11",
+          "complaints": 4
+        },
+        {
+          "month": "2019-12",
+          "complaints": 3
+        },
+        {
+          "month": "2020-01",
+          "complaints": 2
+        },
+        {
+          "month": "2020-02",
+          "complaints": 4
+        },
+        {
+          "month": "2020-03",
+          "complaints": 4
+        },
+        {
+          "month": "2020-04",
+          "complaints": 1
+        },
+        {
+          "month": "2020-05",
+          "complaints": 3
+        },
+        {
+          "month": "2020-06",
+          "complaints": 2
+        },
+        {
+          "month": "2020-07",
+          "complaints": 7
+        },
+        {
+          "month": "2020-08",
+          "complaints": 2
+        },
+        {
+          "month": "2020-09",
+          "complaints": 0
+        },
+        {
+          "month": "2020-10",
+          "complaints": 7
+        },
+        {
+          "month": "2020-11",
+          "complaints": 0
+        },
+        {
+          "month": "2020-12",
+          "complaints": 4
+        },
+        {
+          "month": "2021-01",
+          "complaints": 4
+        },
+        {
+          "month": "2021-02",
+          "complaints": 2
+        },
+        {
+          "month": "2021-03",
+          "complaints": 5
+        },
+        {
+          "month": "2021-04",
+          "complaints": 2
+        },
+        {
+          "month": "2021-05",
+          "complaints": 0
+        },
+        {
+          "month": "2021-06",
+          "complaints": 2
+        },
+        {
+          "month": "2021-07",
+          "complaints": 9
+        },
+        {
+          "month": "2021-08",
+          "complaints": 0
+        },
+        {
+          "month": "2021-09",
+          "complaints": 2
+        },
+        {
+          "month": "2021-10",
+          "complaints": 2
+        },
+        {
+          "month": "2021-11",
+          "complaints": 2
+        },
+        {
+          "month": "2021-12",
+          "complaints": 1
+        },
+        {
+          "month": "2022-01",
+          "complaints": 5
+        },
+        {
+          "month": "2022-02",
+          "complaints": 3
+        },
+        {
+          "month": "2022-03",
+          "complaints": 3
+        },
+        {
+          "month": "2022-04",
+          "complaints": 0
+        },
+        {
+          "month": "2022-05",
+          "complaints": 4
+        },
+        {
+          "month": "2022-06",
+          "complaints": 2
+        },
+        {
+          "month": "2022-07",
+          "complaints": 6
+        },
+        {
+          "month": "2022-08",
+          "complaints": 1
+        },
+        {
+          "month": "2022-09",
+          "complaints": 1
+        },
+        {
+          "month": "2022-10",
+          "complaints": 2
+        },
+        {
+          "month": "2022-11",
+          "complaints": 5
+        },
+        {
+          "month": "2022-12",
+          "complaints": 2
+        },
+        {
+          "month": "2023-01",
+          "complaints": 0
+        },
+        {
+          "month": "2023-02",
+          "complaints": 4
+        },
+        {
+          "month": "2023-03",
+          "complaints": 4
+        },
+        {
+          "month": "2023-04",
+          "complaints": 3
+        },
+        {
+          "month": "2023-05",
+          "complaints": 2
+        },
+        {
+          "month": "2023-06",
+          "complaints": 2
+        },
+        {
+          "month": "2023-07",
+          "complaints": 4
+        },
+        {
+          "month": "2023-08",
+          "complaints": 3
+        },
+        {
+          "month": "2023-09",
+          "complaints": 10
+        },
+        {
+          "month": "2023-10",
+          "complaints": 4
+        },
+        {
+          "month": "2023-11",
+          "complaints": 7
+        },
+        {
+          "month": "2023-12",
+          "complaints": 5
+        },
+        {
+          "month": "2024-01",
+          "complaints": 0
+        },
+        {
+          "month": "2024-02",
+          "complaints": 1
+        },
+        {
+          "month": "2024-03",
+          "complaints": 2
+        },
+        {
+          "month": "2024-04",
+          "complaints": 4
+        },
+        {
+          "month": "2024-05",
+          "complaints": 2
+        },
+        {
+          "month": "2024-06",
+          "complaints": 2
+        },
+        {
+          "month": "2024-07",
+          "complaints": 0
+        },
+        {
+          "month": "2024-08",
+          "complaints": 3
+        },
+        {
+          "month": "2024-09",
+          "complaints": 1
+        },
+        {
+          "month": "2024-10",
+          "complaints": 2
+        },
+        {
+          "month": "2024-11",
+          "complaints": 0
+        },
+        {
+          "month": "2024-12",
+          "complaints": 4
+        },
+        {
+          "month": "2025-01",
+          "complaints": 5
+        },
+        {
+          "month": "2025-02",
+          "complaints": 2
+        },
+        {
+          "month": "2025-03",
+          "complaints": 0
+        },
+        {
+          "month": "2025-04",
+          "complaints": 1
+        },
+        {
+          "month": "2025-05",
+          "complaints": 2
+        },
+        {
+          "month": "2025-06",
+          "complaints": 3
+        },
+        {
+          "month": "2025-07",
+          "complaints": 2
+        },
+        {
+          "month": "2025-08",
+          "complaints": 0
+        },
+        {
+          "month": "2025-09",
+          "complaints": 6
+        },
+        {
+          "month": "2025-10",
+          "complaints": 2
+        },
+        {
+          "month": "2025-11",
+          "complaints": 0
+        },
+        {
+          "month": "2025-12",
+          "complaints": 3
+        },
+        {
+          "month": "2026-01",
+          "complaints": 1
+        },
+        {
+          "month": "2026-02",
+          "complaints": 4
+        },
+        {
+          "month": "2026-03",
+          "complaints": 1
+        },
+        {
+          "month": "2026-04",
+          "complaints": 4
+        },
+        {
+          "month": "2026-05",
+          "complaints": 1
+        },
+        {
+          "month": "2026-06",
+          "complaints": 1
+        },
+        {
+          "month": "2026-07",
+          "complaints": 0
+        },
+        {
+          "month": "2026-08",
+          "complaints": 5
+        },
+        {
+          "month": "2026-09",
+          "complaints": 4
+        }
+      ],
+      "clusters": [
+        {
+          "cluster_id": 0,
+          "size": 93,
+          "is_focus": false,
+          "defect_keyword_matches": 0,
+          "purity": 0.0,
+          "top_terms": [
+            "window",
+            "rear",
+            "rear window",
+            "smoke",
+            "defroster",
+            "shattered",
+            "glass",
+            "window defroster",
+            "defrost",
+            "burning",
+            "not",
+            "exploded"
+          ]
+        },
+        {
+          "cluster_id": 1,
+          "size": 960,
+          "is_focus": false,
+          "defect_keyword_matches": 65,
+          "purity": 0.0677,
+          "top_terms": [
+            "truck",
+            "not",
+            "transmission",
+            "no",
+            "problem",
+            "issue",
+            "miles",
+            "gm",
+            "air",
+            "engine",
+            "driving",
+            "fuel"
+          ]
+        },
+        {
+          "cluster_id": 2,
+          "size": 307,
+          "is_focus": false,
+          "defect_keyword_matches": 6,
+          "purity": 0.0195,
+          "top_terms": [
+            "brake",
+            "stop",
+            "pedal",
+            "brake pedal",
+            "brakes",
+            "hard",
+            "vacuum",
+            "pump",
+            "low",
+            "parking",
+            "speeds",
+            "not"
+          ]
+        },
+        {
+          "cluster_id": 3,
+          "size": 357,
+          "is_focus": true,
+          "defect_keyword_matches": 168,
+          "purity": 0.4706,
+          "top_terms": [
+            "steering",
+            "failure",
+            "power",
+            "power steering",
+            "not",
+            "driving",
+            "warning",
+            "wheel",
+            "chevrolet",
+            "illuminated",
+            "engine",
+            "steering wheel"
+          ]
+        },
+        {
+          "cluster_id": 4,
+          "size": 112,
+          "is_focus": false,
+          "defect_keyword_matches": 9,
+          "purity": 0.0804,
+          "top_terms": [
+            "trailer",
+            "trailer brakes",
+            "brakes",
+            "comes",
+            "trailers",
+            "issue",
+            "message",
+            "level",
+            "trailer brake",
+            "gm",
+            "service trailer",
+            "wiring"
+          ]
+        }
+      ]
+    },
+    {
+      "vehicle_id": "honda_civic",
+      "make": "HONDA",
+      "model": "CIVIC",
+      "status": "excluded",
+      "meta": {
+        "window": "2001-01-01 to 2005-12-31",
+        "recall_campaign_number": "15V-320",
+        "recall_signal_month": "2015-05-28",
+        "defect_description": "Takata driver frontal airbag inflator may rupture",
+        "source": "NHTSA ODI Complaints flat file (public domain)"
+      },
+      "excluded_because": "The clustering produced a very pure cluster (98.2%), but on inspection its top terms are 'did not deploy' / 'not deploy' -- it captures airbag NON-deployment complaints, which is the opposite failure mode from an inflator rupture. Separately, there is no pre-recall ramp to detect: 630 of the 879 pre-recall complaints were already filed 48 months out, and the rate is flat at roughly 60/year for 14 years. Takata ruptures numbered in the dozens nationwide, so no complaint wave ever existed. Two independent reasons, either sufficient."
+    },
+    {
+      "vehicle_id": "jeep_grand_cherokee",
+      "make": "JEEP",
+      "model": "GRAND CHEROKEE",
+      "status": "excluded",
+      "meta": {
+        "window": "2008-01-01 to 2008-12-31",
+        "recall_campaign_number": "14V-567",
+        "recall_signal_month": "2014-09-17",
+        "defect_description": "Ignition key may not return from START to ON, shutting the engine off",
+        "source": "NHTSA ODI Complaints flat file (public domain)"
+      },
+      "excluded_because": "The manufacturer's Part 573 report cites approximately 13 complaints at filing. The detection method needs a complaint wave; 13 complaints is not one, so this recall is structurally unbacktestable here regardless of clustering quality. Clustering confirmed it: best cluster reached only 1.3x lift over base rate, essentially no discriminative power."
+    },
+    {
+      "vehicle_id": "toyota_camry",
+      "make": "TOYOTA",
+      "model": "CAMRY",
+      "status": "excluded",
+      "meta": {
+        "window": "2004-01-01 to 2009-12-31",
+        "recall_campaign_number": "09V-388",
+        "recall_signal_month": "2009-05-10",
+        "defect_description": "Accelerator pedal may be trapped by an unsecured or incompatible floor mat",
+        "source": "NHTSA ODI Complaints flat file (public domain)"
+      },
+      "excluded_because": "Best lift was 2.6x with purity never above 21%. This vehicle's complaint population is dominated by unrelated high-volume issues (melting dashboards, oil consumption, sun visor failures), and only 8% of complaints matched the defect's language at all. The floor mat signal is real but too small relative to the noise to isolate cleanly."
+    }
+  ]
+}
