@@ -1,19 +1,45 @@
 <p align="center">
-  <img src="assets/icon/icon-512.png" alt="Fissure logo" width="120">
+  <img src="assets/banner/banner.png" alt="Fissure: early defect detection" width="820">
 </p>
 
-<h1 align="center">Fissure</h1>
+<hr>
 
 <p align="center">
-  <b>Finds car defects in owner complaints long before the recall.</b><br>
-  Built at Hack Dearborn 5 (UM-Dearborn, October 2026)
+  <b>Finds car defects hiding in owner complaints, long before the recall.</b><br>
+  Fissure reads what drivers actually describe instead of the category their complaint got filed under,<br>
+  and shows the warning that was sitting in public data for years.
 </p>
 
 <p align="center">
-  <img src="assets/screenshots/eruption.png" alt="Fissure matching a driver's description to the Ford Fusion steering defect" width="820">
+  <a href="#results">Results</a> ·
+  <a href="#how-it-works-start-to-finish">How it works</a> ·
+  <a href="#the-data-pipeline-python">Pipeline</a> ·
+  <a href="#the-web-app-nextjs">The app</a> ·
+  <a href="#ibm-watsonx-and-granite">IBM watsonx</a> ·
+  <a href="#running-it-yourself">Setup</a>
 </p>
 
----
+<p align="center">
+  <img src="https://img.shields.io/badge/data-NHTSA%20complaints-ff5a1f?style=flat&labelColor=2b2230" alt="data: NHTSA complaints"> <img src="https://img.shields.io/badge/LLM-IBM%20Granite-0f62fe?style=flat&labelColor=2b2230&logo=ibm&logoColor=white" alt="LLM: IBM Granite"> <img src="https://img.shields.io/badge/platform-watsonx.ai-0f62fe?style=flat&labelColor=2b2230" alt="platform: watsonx.ai"> <img src="https://img.shields.io/badge/pipeline-Python-3776ab?style=flat&labelColor=2b2230&logo=python&logoColor=white" alt="pipeline: Python"> <img src="https://img.shields.io/badge/ML-scikit--learn-f7931e?style=flat&labelColor=2b2230&logo=scikitlearn&logoColor=white" alt="ML: scikit-learn"> <img src="https://img.shields.io/badge/app-Next.js%2016-000000?style=flat&labelColor=2b2230&logo=nextdotjs&logoColor=white" alt="app: Next.js 16"> <img src="https://img.shields.io/badge/UI-React%2019-149eca?style=flat&labelColor=2b2230&logo=react&logoColor=white" alt="UI: React 19"> <img src="https://img.shields.io/badge/lang-TypeScript-3178c6?style=flat&labelColor=2b2230&logo=typescript&logoColor=white" alt="lang: TypeScript"> <img src="https://img.shields.io/badge/style-Tailwind%20v4-06b6d4?style=flat&labelColor=2b2230&logo=tailwindcss&logoColor=white" alt="style: Tailwind v4"> <img src="https://img.shields.io/badge/deploy-Vercel-000000?style=flat&labelColor=2b2230&logo=vercel&logoColor=white" alt="deploy: Vercel"> <img src="https://img.shields.io/badge/built%20at-Hack%20Dearborn%205-ffb245?style=flat&labelColor=2b2230" alt="built at: Hack Dearborn 5">
+</p>
+
+<!-- TODO: replace with your Vercel URL -->
+<p align="center">
+  <a href="https://YOUR-APP.vercel.app"><b>▶ Try the live demo</b></a>
+</p>
+
+<hr>
+
+<p align="center">
+  <img src="assets/screenshots/eruption.png" alt="Fissure matching a driver's description to the Ford Fusion steering defect" width="860">
+</p>
+
+<p align="center">
+  <img src="assets/banner/stats.png" alt="38.3 months early warning on the Ford Fusion recall. 16.3 months on the Chevy Silverado recall. 1,215 Fusion complaints on file the day of the recall. One defect split across 78 official categories." width="820">
+</p>
+
+> [!NOTE]
+> Every number in this README comes from `app/public/clusters.json`, which the pipeline generates from the public NHTSA complaints file. Nothing is typed in by hand.
 
 ## Table of contents
 
@@ -23,6 +49,8 @@
 4. [How it works, start to finish](#how-it-works-start-to-finish)
 5. [The data pipeline (Python)](#the-data-pipeline-python)
 6. [The web app (Next.js)](#the-web-app-nextjs)
+   - [What happens when you use it](#what-happens-when-you-use-it)
+   - [File by file](#file-by-file)
 7. [IBM watsonx and Granite](#ibm-watsonx-and-granite)
 8. [Running it yourself](#running-it-yourself)
 9. [Deploying](#deploying)
@@ -81,7 +109,8 @@ The flag rule is simple: **raise a flag once a cluster gets 25 or more complaint
 | 100 per year | Jul 2013 | 26.3 mo | never | never |
 | 200 per year | Jan 2014 | 20.3 mo | never | never |
 
-The Fusion gets flagged at least 20 months early under every threshold we tried. The Silverado defect produced fewer complaints, so only the most sensitive threshold catches it.
+> [!TIP]
+> The Fusion gets flagged at least 20 months early under every threshold we tried. The Silverado defect produced fewer complaints, so only the most sensitive threshold catches it.
 
 There's also a threshold-free way to look at it: count how many matching complaints existed at each point before the recall.
 
@@ -97,6 +126,9 @@ There's also a threshold-free way to look at it: count how many matching complai
 Two years before the Fusion recall, 192 owners had already described the same failure.
 
 ### Vehicles we tested and rejected
+
+> [!IMPORTANT]
+> We started with five vehicles and only two made it. The failures are documented here on purpose.
 
 We started with five vehicles. Three didn't hold up, and we kept the reasons instead of hiding them:
 
@@ -140,6 +172,7 @@ Lives in `data/`. Requires Python 3, `pandas` and `scikit-learn`. Every script r
 
 The source is NHTSA's **ODI Complaints flat file**: one big tab-separated text file with 51 columns per complaint, public domain, from nhtsa.gov's datasets page. The ingest step parses it and saves `processed/complaints_clean.pkl`.
 
+> [!IMPORTANT]
 > **TODO:** add the name of the ingest script here.
 
 The columns that matter most:
@@ -230,17 +263,29 @@ Lives in `app/`. Built with **Next.js 16** (App Router), **React 19**, **TypeScr
 
 ### File by file
 
-#### `app/layout.tsx`
+Click any file to expand it.
+
+<details>
+<summary><b><code>app/layout.tsx</code></b></summary>
+
 The outer shell of every page. Loads the **IBM Plex Sans** and **IBM Plex Mono** fonts, a nod to the IBM-sponsored track, and sets the page title and description.
 
-#### `app/page.tsx`
+</details>
+
+<details>
+<summary><b><code>app/page.tsx</code></b></summary>
+
 The main page. It:
 - Fetches `/clusters.json` when the page opens, and shows a helpful error if the file is missing.
 - Renders the volcano hero (`<Hero>`) at the top.
 - Renders the **evidence section** below it, with a picker to switch between validated vehicles (Fusion, Silverado). For the selected vehicle it shows the headline numbers, the timeline chart, and every evidence panel.
 - Scrolls smoothly down to the evidence when you click **See the evidence**.
 
-#### `app/globals.css`
+</details>
+
+<details>
+<summary><b><code>app/globals.css</code></b></summary>
+
 All shared styling. It defines the color palette using volcanic names:
 
 | Name | Color | Used for |
@@ -253,7 +298,11 @@ All shared styling. It defines the color palette using volcanic names:
 
 It also styles the search bar, the orbiting category bubbles (`.orbit-node`), the glowing defect sphere (`.core-sphere`), the result card (`.record`), the lava shimmer animation, and turns animations off for anyone whose system is set to reduce motion.
 
-#### `app/api/match/route.ts`
+</details>
+
+<details>
+<summary><b><code>app/api/match/route.ts</code></b></summary>
+
 The **server-side** endpoint the browser calls with your description. It:
 1. Checks the watsonx credentials exist. If not, it returns a `503` and the browser uses the backup matcher.
 2. Checks the description is 3 to 600 characters long.
@@ -263,32 +312,52 @@ The **server-side** endpoint the browser calls with your description. It:
 
 Your API key never leaves the server.
 
-#### `lib/watsonx.ts`
+</details>
+
+<details>
+<summary><b><code>lib/watsonx.ts</code></b></summary>
+
 A small client for IBM watsonx, with no SDK needed:
 - **`readConfig()`** reads the four `WATSONX_*` environment variables.
 - **`getToken()`** trades your IBM Cloud API key for a temporary login token and remembers it until about 5 minutes before it expires, so most requests skip this step.
 - **`chat()`** sends the conversation to the watsonx chat endpoint and returns the model's reply. It gives up after 6 seconds.
 - **`extractJson()`** pulls the `{...}` part out of the reply, in case the model adds extra text around it.
 
-#### `lib/match.ts`
+</details>
+
+<details>
+<summary><b><code>lib/match.ts</code></b></summary>
+
 The **backup matcher**, used when Granite is slow, down or not configured, so the demo never breaks.
 - Splits your description into words and drops filler words.
 - Expands them with a hand-built synonym list, because owners say "sticky" and "heavy" where engineers say "assist loss". For example, `sticky` also matches `stiff`, `tight`, `binding` and `hard`.
 - Scores each vehicle by how many of your words appear in its cluster's top words (earlier words count more), its defect description, and its short title.
 - Also contains `shortenCategory()`, which turns long official labels into bubble-sized ones (`ELECTRONIC STABILITY CONTROL (ESC)` becomes `ESC`), and `titleFor()`, which gives each defect its short name for the sphere.
 
-#### `lib/types.ts`
+</details>
+
+<details>
+<summary><b><code>lib/types.ts</code></b></summary>
+
 TypeScript descriptions of everything in `clusters.json`, so the editor catches typos. It also holds `INK`, the chart color set, which was checked for colorblind-safe contrast.
 
-#### `lib/scene.ts`
+</details>
+
+<details>
+<summary><b><code>lib/scene.ts</code></b></summary>
+
 The shared geometry for the volcano. The scene is designed on a 1600 by 1000 grid with the crater at (800, 565) and the defect sphere at (800, 345).
 - **`fit()`** converts grid positions to screen pixels for any window size, scaling to the height on wide screens and cropping the sides on phones.
 - **`flankX()`** gives the edge of the cone at any height, so lava rivers stay on the mountain.
 
 The drawing, the canvas and the HTML bubbles all use this one mapping, so they always line up.
 
-#### `components/Hero.tsx`
-The top section: header, search bar, example prompts, volcano, bubbles and result card. It runs the eruption as a **step-by-step sequence**:
+</details>
+
+<details>
+<summary><b><code>components/Hero.tsx</code></b></summary>
+
+The top section: the logo and name in the corner, search bar, example prompts, volcano, bubbles and result card. It runs the eruption as a **step-by-step sequence**:
 
 | Step | What happens | How long |
 |---|---|---|
@@ -304,7 +373,18 @@ Details worth knowing:
 - **If nothing matches** (try "my radio is broken"), the volcano settles and a friendly message suggests what to describe.
 - **Reduced motion:** if your system asks for less animation, it skips the shaking and particles and goes straight to the result.
 
-#### `components/VolcanoScene.tsx`
+</details>
+
+<details>
+<summary><b><code>components/Logo.tsx</code></b></summary>
+
+The Fissure volcano mark shown in the top-left corner, drawn as inline SVG so it stays sharp at any size. It's the same art as the favicon. Its crater glow slowly "breathes", and it tilts slightly when you hover over it (styled in `globals.css` under `.brand`).
+
+</details>
+
+<details>
+<summary><b><code>components/VolcanoScene.tsx</code></b></summary>
+
 The volcano itself, drawn in two layers.
 
 **The SVG layer (the scenery):** the sky gradient, stars, rim-lit clouds, two mountain ranges, the cone with shaded facets, the crater, the ground, foreground rocks, and about 25 lava rivers.
@@ -319,7 +399,11 @@ The volcano itself, drawn in two layers.
 
 How many puffs and sparks it makes depends on the current phase: a wisp when idle, more while rumbling, a huge burst on eruption, then a steady plume.
 
-#### `components/Timeline.tsx`
+</details>
+
+<details>
+<summary><b><code>components/Timeline.tsx</code></b></summary>
+
 The main chart. It shows how many complaints describing the defect were filed each month.
 - **Orange area:** what drivers reported.
 - **Amber dashed line:** the month Fissure would have raised a flag. The shaded band between it and the recall is the early-warning window.
@@ -327,7 +411,11 @@ The main chart. It shows how many complaints describing the defect were filed ea
 
 It starts zoomed to a year past the recall, with a button to show the full history.
 
-#### `components/Panels.tsx`
+</details>
+
+<details>
+<summary><b><code>components/Panels.tsx</code></b></summary>
+
 Every card in the evidence section:
 
 | Panel | What it shows |
@@ -341,14 +429,29 @@ Every card in the evidence section:
 | `ExcludedPanel` | The rejected vehicles, each expandable to show why |
 | `MethodPanel` | The preprocessing steps and the known limitations |
 
-#### `scripts/check-watsonx.mjs`
+</details>
+
+<details>
+<summary><b><code>scripts/check-watsonx.mjs</code></b></summary>
+
 A setup checker you run once. It reads `.env.local`, tests your API key, **lists the Granite chat models your region actually offers**, and sends one test message. If something is wrong, it tells you what to fix: a bad key, a missing runtime, or a model name that doesn't exist in your region.
 
-#### `scripts/organize-assets.sh` (repo root)
+</details>
+
+<details>
+<summary><b><code>scripts/organize-assets.sh</code> (repo root)</b></summary>
+
 Puts the icon files where Next.js expects them (`app/app/favicon.ico`, `icon.svg`, `apple-icon.png`), copies them into `assets/` for this README, then commits and pushes. It refuses to commit if an `.env` file sneaks in.
 
-#### Icons
+</details>
+
+<details>
+<summary><b>Icons</b></summary>
+
 `app/app/favicon.ico`, `app/app/icon.svg` and `app/app/apple-icon.png` are picked up by Next.js automatically by their file names. The tiny browser-tab version uses a simplified drawing with a thicker crack, so it still reads at 16 pixels.
+
+</details>
+
 
 ---
 
@@ -414,7 +517,8 @@ Open http://localhost:3000. It works without watsonx, using the keyword matcher.
 
 7. Restart `npm run dev`. The result card should now say **"Matched by IBM Granite"**.
 
-`.env.local` is git-ignored. Never commit your API key.
+> [!WARNING]
+> `.env.local` is git-ignored. Never commit your API key.
 
 ### 3. The data pipeline
 
@@ -452,6 +556,7 @@ The live app runs on **Vercel**:
 fissure/
 ├── README.md
 ├── assets/                     images used by this README
+│   ├── banner/                 README header + stats strip
 │   ├── icon/                   logo in several sizes
 │   ├── screenshots/
 │   └── social-preview.png      GitHub link preview
@@ -473,6 +578,7 @@ fissure/
     │   ├── favicon.ico, icon.svg, apple-icon.png
     ├── components/
     │   ├── Hero.tsx            search, eruption sequence, bubbles, result card
+    │   ├── Logo.tsx            the volcano mark in the top-left corner
     │   ├── VolcanoScene.tsx    the volcano drawing and eruption effects
     │   ├── Timeline.tsx        complaints-per-month chart
     │   └── Panels.tsx          all the evidence cards
