@@ -1,0 +1,100 @@
+{
+    "vehicles": [
+        {
+            "vehicle_id": "ford_fusion",
+            "make": "FORD",
+            "model": "FUSION",
+            "meta": {
+                "total_complaints_analyzed": 0,
+                "window": "2010-01-01 to 2016-12-31",
+                "focus_cluster_id": null,
+                "alert_month": null,
+                "recall_signal_month": "2015-09-10",
+                "recall_campaign_number": "15V-340",
+                "lead_months": null,
+                "source": "NHTSA ODI Complaints flat file (public domain)"
+            },
+            "clusters": []
+        },
+        {
+            "vehicle_id": "jeep_grand_cherokee",
+            "make": "JEEP",
+            "model": "GRAND CHEROKEE",
+            "meta": {
+                "total_complaints_analyzed": 0,
+                "window": "2008-01-01 to 2016-12-31",
+                "focus_cluster_id": null,
+                "alert_month": null,
+                "recall_signal_month": "2015-08-01",
+                "recall_campaign_number": "14V-567",
+                "lead_months": null,
+                "source": "NHTSA ODI Complaints flat file (public domain)"
+            },
+            "clusters": []
+        },
+        {
+            "vehicle_id": "honda_civic",
+            "make": "HONDA",
+            "model": "CIVIC",
+            "meta": {
+                "total_complaints_analyzed": 0,
+                "window": "2001-01-01 to 2015-12-31",
+                "focus_cluster_id": null,
+                "alert_month": null,
+                "recall_signal_month": "2015-07-01",
+                "recall_campaign_number": "15V-320",
+                "lead_months": null,
+                "source": "NHTSA ODI Complaints flat file (public domain)"
+            },
+            "clusters": []
+        },
+        {
+            "vehicle_id": "toyota_camry",
+            "make": "TOYOTA",
+            "model": "CAMRY",
+            "meta": {
+                "total_complaints_analyzed": 0,
+                "window": "2004-01-01 to 2009-12-31",
+                "focus_cluster_id": null,
+                "alert_month": null,
+                "recall_signal_month": "2009-10-05",
+                "recall_campaign_number": "09V-388",
+                "lead_months": null,
+                "source": "NHTSA ODI Complaints flat file (public domain)"
+            },
+            "clusters": []
+        },
+        {
+            "vehicle_id": "hyundai_sonata",
+            "make": "HYUNDAI",
+            "model": "SONATA",
+            "meta": {
+                "total_complaints_analyzed": 0,
+                "window": "2020-01-01 to 2023-12-31",
+                "focus_cluster_id": null,
+                "alert_month": null,
+                "recall_signal_month": "2023-07-27",
+                "recall_campaign_number": "23V-526",
+                "lead_months": null,
+                "source": "NHTSA ODI Complaints flat file (public domain)"
+            },
+            "clusters": []
+        },
+        {
+            "vehicle_id": "chevrolet_silverado",
+            "make": "CHEVROLET",
+            "model": "SILVERADO",
+            "meta": {
+                "total_complaints_analyzed": 0,
+                "window": "2013-01-01 to 2021-12-31",
+                "focus_cluster_id": null,
+                "alert_month": null,
+                "recall_signal_month": "2021-10-01",
+                "recall_campaign_number": "20V-504",
+                "lead_months": null,
+                "source": "NHTSA ODI Complaints flat file (public domain)"
+            },
+            "clusters": []
+        }
+    ]
+}
