@@ -268,7 +268,7 @@ export default function Hero({
       if (!result) {
         go("dormant");
         setNotice(
-          "No known defect pattern matches that yet. Try describing what the car does, like how the steering feels.",
+          "No known defect pattern matches that yet.",
         );
         return;
       }
