@@ -99,6 +99,47 @@ EXCLUDED = {
             "to the noise to isolate cleanly."
         ),
     },
+    "chevrolet_cobalt": {
+        "make": "CHEVROLET",
+        "model": "COBALT",
+        "window": "2005-01-01 to 2007-12-31",
+        # 2014-02-14 is the Part 573 report date (RCAK-14V047-5800) for the
+        # ORIGINAL campaign: 2005-2007 Cobalt and 2007 Pontiac G5. The NHTSA
+        # campaign API returns 2014-10-02 and six models, which is a later
+        # amendment. We use the original on purpose: between February and
+        # October 2014 this defect was a congressional-hearing-level news
+        # story, so complaints in that window are driven by publicity.
+        # Backtesting against the amendment would detect the news cycle and
+        # call it an early warning.
+        "recall_date": "2014-02-14",
+        "campaign": "14V-047",
+        "defect": (
+            "Ignition switch may move out of the run position, shutting off the "
+            "engine and disabling the airbags"
+        ),
+        "excluded_because": (
+            "Not a volume problem. 1,005 of 7,189 complaints match the ignition/stall "
+            "language and 335 of those were filed before the recall, so unlike the Jeep "
+            "the complaint wave exists. It fails on isolation. The defect spreads across "
+            "4 clusters each holding >=10%, and the best single cluster captures only "
+            "39.3% of it at 23.0% purity (1.6x lift), against 72.0% / 95.6% / 3.0x for "
+            "the Fusion. The cause is that one root defect produces four unrelated "
+            "complaint vocabularies: the engine stalling, the key leaving the run "
+            "position, the airbags failing to deploy in the resulting crash, and the "
+            "loss of power steering and braking once the engine is off. The official "
+            "categories show the same split -- 277 ELECTRICAL SYSTEM, 173 STEERING, "
+            "91 ENGINE, 71 AIR BAGS. KMeans separated those narratives correctly, "
+            "because they genuinely are different texts, which is exactly the wrong "
+            "outcome for this defect. Merging the two best clusters at k=6 reaches "
+            "63.2% recall but only 29.8% purity (2.1x lift), below the Camry already "
+            "rejected at 2.6x. "
+            "Worth recording honestly: the 25-complaints-in-12-months rule WOULD have "
+            "fired in January 2006, 97 months before the recall. We do not count that "
+            "as a detection. A 1.6x cluster is barely better than drawing complaints at "
+            "random, and an alert that cannot be attributed to one specific failure is "
+            "not an early warning, it is a coincidence with a good date on it."
+        ),
+    },
 }
 
 SOURCE = "NHTSA ODI Complaints flat file (public domain)"

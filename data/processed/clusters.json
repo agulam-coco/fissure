@@ -1861,6 +1861,20 @@
         "source": "NHTSA ODI Complaints flat file (public domain)"
       },
       "excluded_because": "Best lift was 2.6x with purity never above 21%. This vehicle's complaint population is dominated by unrelated high-volume issues (melting dashboards, oil consumption, sun visor failures), and only 8% of complaints matched the defect's language at all. The floor mat signal is real but too small relative to the noise to isolate cleanly."
+    },
+    {
+      "vehicle_id": "chevrolet_cobalt",
+      "make": "CHEVROLET",
+      "model": "COBALT",
+      "status": "excluded",
+      "meta": {
+        "window": "2005-01-01 to 2007-12-31",
+        "recall_campaign_number": "14V-047",
+        "recall_signal_month": "2014-02-14",
+        "defect_description": "Ignition switch may move out of the run position, shutting off the engine and disabling the airbags",
+        "source": "NHTSA ODI Complaints flat file (public domain)"
+      },
+      "excluded_because": "Not a volume problem. 1,005 of 7,189 complaints match the ignition/stall language and 335 of those were filed before the recall, so unlike the Jeep the complaint wave exists. It fails on isolation. The defect spreads across 4 clusters each holding >=10%, and the best single cluster captures only 39.3% of it at 23.0% purity (1.6x lift), against 72.0% / 95.6% / 3.0x for the Fusion. The cause is that one root defect produces four unrelated complaint vocabularies: the engine stalling, the key leaving the run position, the airbags failing to deploy in the resulting crash, and the loss of power steering and braking once the engine is off. The official categories show the same split -- 277 ELECTRICAL SYSTEM, 173 STEERING, 91 ENGINE, 71 AIR BAGS. KMeans separated those narratives correctly, because they genuinely are different texts, which is exactly the wrong outcome for this defect. Merging the two best clusters at k=6 reaches 63.2% recall but only 29.8% purity (2.1x lift), below the Camry already rejected at 2.6x. Worth recording honestly: the 25-complaints-in-12-months rule WOULD have fired in January 2006, 97 months before the recall. We do not count that as a detection. A 1.6x cluster is barely better than drawing complaints at random, and an alert that cannot be attributed to one specific failure is not an early warning, it is a coincidence with a good date on it."
     }
   ]
 }

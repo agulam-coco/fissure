@@ -51,6 +51,30 @@ BACKTEST_CONFIG = {
         "defect": "Takata driver airbag inflator",
         "min_date": "2000-01-01",
     },
+    # Kept so the NEGATIVE result is reproducible, not because we claim it.
+    # The best cluster at k=5 holds only 39.3% of the defect at 23.0% purity
+    # (1.6x lift), so the alert month below is not a detection -- see the note.
+    #
+    # Recall date is 2014-02-14, from the Part 573 report (RCAK-14V047-5800),
+    # NOT the 2014-10-02 the NHTSA campaign API returns. That later date is an
+    # amendment, and the Feb-Oct 2014 window is contaminated by national news
+    # coverage of this exact defect.
+    "chevrolet_cobalt": {
+        "clusters": [3],
+        "recall_date": "2014-02-14",
+        "campaign": "14V-047",
+        "defect": "Ignition switch leaves run position, engine shuts off",
+        "min_date": "2004-01-01",
+        "note": (
+            "EXCLUDED. The rule fires ~97 months early here, and we do not count it. "
+            "The cluster is 1.6x better than random (23.0% purity on a 14.0% base "
+            "rate) and holds 39.3% of the defect, against 95.6% / 72.0% for the "
+            "Fusion. One defect produced four complaint vocabularies -- stalling, "
+            "the key leaving run, airbags not deploying in the resulting crash, and "
+            "loss of steering once the engine died -- so no single cluster holds it. "
+            "An alert that cannot be attributed to one failure is not an early warning."
+        ),
+    },
 }
 
 # Months before the recall at which to report accumulated complaint counts.
@@ -144,6 +168,8 @@ def report(slug, cfg):
     print(f"\n{'=' * 68}")
     print(f"{slug}  |  {cfg['campaign']}  |  {cfg['defect']}")
     print(f"{'=' * 68}")
+    if cfg.get("note"):
+        print(f"  !! {cfg['note']}\n")
     print(f"  focus cluster(s):      {cfg['clusters']}")
     print(f"  complaints in cluster: {len(focus):,}")
     if dropped:
@@ -181,16 +207,27 @@ def report(slug, cfg):
         "total_before_recall": total_before,
         "horizons": rows,
         "sensitivity": sens,
+        "excluded": bool(cfg.get("note")),
     }
 
 
 if __name__ == "__main__":
-    results = [report(slug, cfg) for slug, cfg in BACKTEST_CONFIG.items()]
+    results = []
+    for slug, cfg in BACKTEST_CONFIG.items():
+        pkl = PROCESSED_DIR / f"clustered_{slug}.pkl"
+        if not pkl.exists():
+            print(f"\n{'=' * 68}")
+            print(f"{slug}: no {pkl.name} yet, skipping.")
+            print(f"  Run finalize_vehicle(\"{slug}\", <k>) in cluster.py first.")
+            continue
+        results.append(report(slug, cfg))
 
     print(f"\n\n{'=' * 68}")
     print("SUMMARY  (the threshold-free claim, for the pitch)")
     print(f"{'=' * 68}")
     for r in results:
+        if r["excluded"]:
+            continue
         h24 = next((x for x in r["horizons"] if x["months_before"] == 24), None)
         h12 = next((x for x in r["horizons"] if x["months_before"] == 12), None)
         print(f"\n  {r['slug']}  ({r['campaign']})")
@@ -199,3 +236,8 @@ if __name__ == "__main__":
             print(f"    {h24['complaints_filed']:,} already filed 24 months before")
         if h12:
             print(f"    {h12['complaints_filed']:,} already filed 12 months before")
+
+    dropped = [r["slug"] for r in results if r["excluded"]]
+    if dropped:
+        print(f"\n  Reported above but deliberately NOT claimed: {', '.join(dropped)}.")
+        print("  See the note on each for why the alert does not count as a detection.")
