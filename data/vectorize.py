@@ -14,6 +14,7 @@ VEHICLES = [
     "chevrolet_silverado",
     "honda_civic",
     "toyota_camry",
+    "chevrolet_cobalt",
 ]
 
 # Extra narrative/reporting scaffolding words on top of sklearn's generic

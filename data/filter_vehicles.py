@@ -83,3 +83,14 @@ if __name__ == "__main__":
         df, "TOYOTA", "CAMRY",
         2004, 2009, "toyota_camry",
     )
+    
+       # Chevrolet Cobalt — ignition switch / airbag non-deployment (14V-047,
+    # filed 2014-02-14 per the Part 573 report RCAK-14V047-5800). The ORIGINAL
+    # campaign covers 2005-2007 Cobalt and 2007 Pontiac G5. The NHTSA campaign
+    # API returns 2014-10-02 and a six-model list; that is a later amendment,
+    # and Feb-Oct 2014 is contaminated by national news coverage, so the
+    # original date and scope are what we backtest against.
+    filter_vehicle(
+        df, "CHEVROLET", "COBALT",
+        2005, 2007, "chevrolet_cobalt",
+    )

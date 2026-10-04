@@ -32,7 +32,14 @@ const CANDIDATES = data.vehicles.filter(isValidated).map((v) => {
 });
 const IDS = new Set(CANDIDATES.map((c) => c.id));
 
-const SYSTEM = `You match a car owner's plain-language problem description to known vehicle defect patterns that were found by clustering NHTSA owner complaints. Owners use informal words ("sticky", "heavy", "went stiff"), so match on meaning, not exact wording. Reply with one JSON object and nothing else.`;
+const SYSTEM = `You match a car owner's plain-language problem description to known vehicle defect patterns that were found by clustering NHTSA owner complaints. Owners use informal words ("sticky", "heavy", "went stiff"), so match on meaning, not exact wording.
+
+Only a handful of defect patterns are known, so MOST descriptions will not match any of them. "none" is the correct and expected answer whenever the owner is describing a different part of the car. Answering "none" is never a failure.
+
+Reply with one JSON object and nothing else.`;
+
+/** Below this the match is not worth showing, so it is treated as no match. */
+const MIN_CONFIDENCE = 0.45;
 
 function userPrompt(query: string) {
     const list = CANDIDATES.map(
@@ -45,11 +52,11 @@ function userPrompt(query: string) {
 Known defect patterns:
 ${list}
 
-Rules:
-- Pick the pattern whose failure best matches the symptoms described.
-- If the owner names a make or model, prefer the pattern for that vehicle.
-- Several patterns may involve the same part. Use "how to tell it apart" to choose between them: whether the failure persists or returns on its own is usually the deciding detail.
-- If no pattern plausibly fits the symptoms, use "none".
+Rules, in order:
+1. The part must match. If the owner is describing a different system (brakes, radio, engine, air conditioning, transmission, lights, seats, anything else), answer "none", even if the way it fails sounds similar. "Sometimes", "randomly" and "intermittently" describe HOW something fails and say nothing about WHAT failed.
+2. Naming a make or model is not enough on its own. An owner can name a vehicle and then describe a completely unrelated problem. Still answer "none" in that case.
+3. Only if the part matches, pick the pattern whose failure best fits. Several patterns may involve the same part, so use "how to tell it apart" to choose between them: whether the failure persists or returns on its own is usually the deciding detail.
+4. If you are not confident the description is the same failure, answer "none" and give a confidence below 0.4.
 
 Respond as JSON exactly like:
 {"vehicle_id": "<one of the ids above, or none>", "confidence": <number 0 to 1>, "reason": "<one plain-English sentence under 25 words>"}`;
@@ -91,10 +98,20 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "unparseable model reply", raw: text.slice(0, 300) }, { status: 502 });
         }
 
+        const confidence =
+            typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null;
+
+        // A hedged match is a no-match. The model is asked to self-report, and
+        // when it picks a pattern it is unsure of, showing that to the user as
+        // a confident eruption is worse than showing nothing.
+        const tooUnsure = id !== "none" && confidence !== null && confidence < MIN_CONFIDENCE;
+
         return NextResponse.json({
-            vehicle_id: id,
-            confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null,
-            reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 220) : "",
+            vehicle_id: tooUnsure ? "none" : id,
+            confidence,
+            reason: tooUnsure
+                ? "Not confident enough in any known pattern."
+                : typeof parsed.reason === "string" ? parsed.reason.slice(0, 220) : "",
             model: cfg.modelId,
             ms: Date.now() - started,
         });

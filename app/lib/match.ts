@@ -63,6 +63,40 @@ const SIGNATURE_PHRASES: Record<string, string[]> = {
     ],
 };
 
+/**
+ * The part each defect is about. A description has to mention the SYSTEM
+ * before it can match a defect in that system, no matter how well the rest
+ * of the wording lines up.
+ *
+ * Without this gate the failure-mode words below carry a match on their own,
+ * and "my handbrake sometimes randomly activates" scores on the Silverado
+ * purely because "sometimes" and "randomly" describe intermittency. Those
+ * words say HOW something fails. They say nothing about WHAT failed, and only
+ * the pair is evidence.
+ */
+const SUBJECT_STRONG: Record<string, string[]> = {
+    ford_fusion: ["steering", "steer", "steers", "steered", "eps", "epas"],
+    chevrolet_silverado: ["steering", "steer", "steers", "steered", "eps", "epas"],
+};
+
+/**
+ * Ambiguous on their own. A "wheel" can be the thing you hold or the thing
+ * the tyre is on, and plenty of systems "assist". One of these counts as
+ * subject evidence only alongside a failure description, so "the wheel got
+ * heavy while turning" is steering and "the wheel bearings are noisy" is not.
+ */
+const SUBJECT_WEAK: Record<string, string[]> = {
+    ford_fusion: ["wheel", "turn", "turns", "turning", "handling", "assist"],
+    chevrolet_silverado: ["wheel", "turn", "turns", "turning", "handling", "assist"],
+};
+
+/**
+ * Below this, the evidence is too thin to put a defect on screen. Real
+ * matches land around 10 and up; the worst false positives before the
+ * SUBJECT gate sat near 7, so this is a backstop and not the main defence.
+ */
+const MIN_SCORE = 3;
+
 /** Whole-word test, so "struck" never counts as "truck". */
 function mentions(raw: string, needle: string): boolean {
     return new RegExp(`\\b${needle}\\b`).test(raw);
@@ -173,7 +207,13 @@ export function titleFor(v: ValidatedVehicle) {
  */
 export function matchLocally(data: ClustersData, query: string): Match | null {
     const raw = query.toLowerCase();
-    const q = expand(tokenize(query));
+    const words = tokenize(query);
+    // The subject gate reads the words the person actually typed. The expanded
+    // set below maps "wheel" and "turning" onto "steering", which is useful for
+    // scoring and would otherwise let a synonym manufacture the evidence that
+    // the gate exists to demand.
+    const typed = new Set(words);
+    const q = expand(words);
     if (q.size === 0) return null;
 
     let best: Match | null = null;
@@ -183,11 +223,22 @@ export function matchLocally(data: ClustersData, query: string): Match | null {
         const focus = v.clusters.find((c) => c.is_focus);
         if (!focus) continue;
 
+        // THE GATE. Does the description even mention this defect's system?
+        // Everything below only separates one steering defect from another,
+        // so none of it is evidence until this passes. Naming the vehicle
+        // does not bypass it either: "my Silverado's radio is broken" is a
+        // Silverado complaint and still not this defect.
+        const strong = (SUBJECT_STRONG[v.vehicle_id] ?? []).some((w) => typed.has(w));
+        const weak = (SUBJECT_WEAK[v.vehicle_id] ?? []).some((w) => typed.has(w));
+        const describesFailure =
+            (SIGNATURE[v.vehicle_id] ?? []).some((w) => q.has(w)) ||
+            (SIGNATURE_PHRASES[v.vehicle_id] ?? []).some((p) => raw.includes(p));
+        if (!strong && !(weak && describesFailure)) continue;
+
         let score = 0;
 
-        // Naming the vehicle settles it. A Silverado owner describing stiff
-        // steering means the Silverado defect, whatever the shared wording
-        // would otherwise score.
+        // Naming the vehicle settles WHICH steering defect, now that we know
+        // the description is about steering at all.
         for (const alias of VEHICLE_ALIASES[v.vehicle_id] ?? []) {
             if (mentions(raw, alias)) {
                 score += 4;
@@ -222,5 +273,5 @@ export function matchLocally(data: ClustersData, query: string): Match | null {
         }
     }
 
-    return best && best.score > 0 ? best : null;
+    return best && best.score >= MIN_SCORE ? best : null;
 }
